@@ -125,6 +125,38 @@ class DataValidator:
 
         return ValidationResult(clean_lookup, report)
 
+    def validate_spatial_data(self, zones: gpd.GeoDataFrame) -> ValidationResult:
+        report = self._make_report("taxi_zones_spatial", zones)
+        report.missing_columns = self._find_missing_columns(zones, EXPECTED_SPATIAL_COLUMNS)
+
+        if report.missing_columns:
+            return ValidationResult(zones.copy(), report)
+
+        clean_zones = zones.copy()
+
+        old_missing = clean_zones["LocationID"].isna()
+        clean_zones["LocationID"] = self._to_nullable_int(clean_zones["LocationID"])
+        report.coerced_values["LocationID"] = int(
+            (clean_zones["LocationID"].isna() & ~old_missing).sum()
+        )
+
+        for col in ["zone", "borough"]:
+            clean_zones[col] = clean_zones[col].astype("string").str.strip()
+
+        if clean_zones.crs is None:
+            report.warnings.append("Spatial data has no CRS.")
+
+        invalid_shapes = int((~clean_zones.geometry.is_valid).sum())
+        if invalid_shapes > 0:
+            report.warnings.append(f"Found {invalid_shapes} invalid geometries.")
+
+        report.missing_values = self._count_missing_values(
+            clean_zones.drop(columns=["geometry"])
+        )
+        report.output_rows = len(clean_zones)
+
+        return ValidationResult(clean_zones, report)
+
     def _make_report(
         self,
         name: str,
