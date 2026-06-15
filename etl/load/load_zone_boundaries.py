@@ -1,6 +1,7 @@
 import json
 from etl.extract import SpatialLoader
 from etl.utils.config import SPATIAL_FILE
+from backend.config.database import get_connection
 
 
 def load_zone_boundaries_data():
@@ -17,8 +18,39 @@ def load_zone_boundaries_data():
     return zones
 
 
-if __name__ == "__main__":
+def load_zone_boundaries():
+    """Load zone polygon data from the shapefile into the zone_boundaries table."""
     zones = load_zone_boundaries_data()
-    print(f"Loaded {len(zones)} zone boundaries")
-    print(f"CRS after reprojection: {zones.crs}")
-    print(zones[["LocationID", "zone", "borough"]].head())
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM zone_boundaries")
+
+    rows_inserted = 0
+    for _, row in zones.iterrows():
+        location_id = int(row["LocationID"])
+        zone        = str(row["zone"]) if row["zone"] else None
+        borough     = str(row["borough"]) if row["borough"] else None
+        shape_area  = float(row["Shape_Area"]) if row.get("Shape_Area") is not None else None
+        shape_length = float(row["Shape_Leng"]) if row.get("Shape_Leng") is not None else None
+
+        # convert shapely geometry to GeoJSON string for SQLite text storage
+        geometry_geojson = json.dumps(row["geometry"].__geo_interface__)
+
+        cursor.execute("""
+            INSERT INTO zone_boundaries
+                (location_id, zone, borough, shape_area, shape_length, geometry)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (location_id, zone, borough, shape_area, shape_length, geometry_geojson))
+
+        rows_inserted += 1
+
+    conn.commit()
+    conn.close()
+
+    print(f"Loaded {rows_inserted} zone boundaries.")
+
+
+if __name__ == "__main__":
+    load_zone_boundaries()
