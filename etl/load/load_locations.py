@@ -14,6 +14,12 @@ def load_locations_data():
         "Zone": "zone",
     })
 
+    # LocationID 264/265 use the literal string "N/A" for borough/zone/service_zone.
+    # pandas reads "N/A" as NaN by default - restore it as a real category here.
+    locations[["borough", "zone", "service_zone"]] = (
+        locations[["borough", "zone", "service_zone"]].fillna("N/A")
+    )
+
     return locations[["location_id", "borough", "zone", "service_zone"]]
 
 
