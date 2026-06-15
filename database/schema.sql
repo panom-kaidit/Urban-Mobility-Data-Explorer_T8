@@ -70,3 +70,34 @@ CREATE TABLE trips (
     FOREIGN KEY (pu_location_id) REFERENCES locations (location_id),
     FOREIGN KEY (do_location_id) REFERENCES locations (location_id)
 );
+
+-- suspicious_records: rows removed by cleaner.py before outlier
+-- detection, zone merging, or feature engineering ran. All raw
+-- columns are nullable since a bad/missing value is often the
+-- reason the row was removed in the first place.
+CREATE TABLE suspicious_records (
+    record_id              INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    vendor_id              INTEGER,
+    pickup_datetime        TEXT,
+    dropoff_datetime       TEXT,
+    passenger_count        INTEGER,
+    trip_distance          REAL,
+    rate_code_id           INTEGER,
+    store_and_fwd_flag     TEXT,
+    pu_location_id         INTEGER,
+    do_location_id         INTEGER,
+    payment_type           INTEGER,
+    fare_amount            REAL,
+    extra                  REAL,
+    mta_tax                REAL,
+    tip_amount             REAL,
+    tolls_amount           REAL,
+    improvement_surcharge  REAL,
+    total_amount           REAL,
+    congestion_surcharge   REAL,
+    airport_fee            REAL,
+
+    removal_reason         TEXT NOT NULL,
+    flagged_at             TEXT NOT NULL DEFAULT (datetime('now'))
+);
