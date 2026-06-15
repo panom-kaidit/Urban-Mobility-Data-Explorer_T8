@@ -69,48 +69,56 @@ RENAME_MAP = {
 DATETIME_COLUMNS = ["pickup_datetime", "dropoff_datetime"]
 
 
+def to_python(v):
+    """Convert any value to a Python-native type SQLite can accept."""
+    if v is None:
+        return None
+    try:
+        if pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    if hasattr(v, "item"):
+        return v.item()
+    return v
+
+
 def sanitize(df, columns):
     """
     Prepare a dataframe for SQLite insertion:
     - Rename raw ETL columns to db column names
-    - Convert datetime columns to ISO strings
-    - Fill any missing expected columns with None
-    - Convert pandas NA/NaN to None
+    - Ensure all expected columns exist
+    - Convert every value to a Python-native type SQLite can accept
     """
     df = df.rename(columns=RENAME_MAP).copy()
 
-    # convert datetime columns to ISO format strings
-    for col in DATETIME_COLUMNS:
-        if col in df.columns:
-            df[col] = df[col].apply(
-                lambda v: v.isoformat() if pd.notna(v) and hasattr(v, "isoformat") else None
-            )
-
-    # ensure all expected columns exist
     for col in columns:
         if col not in df.columns:
             df[col] = None
 
-    # convert all pandas NA / NaN to None for SQLite
-    df = df[columns].where(df[columns].notna(), other=None)
-
-    return df
+    rows = [
+        tuple(to_python(v) for v in row)
+        for row in df[columns].itertuples(index=False, name=None)
+    ]
+    return rows
 
 
 def insert_trips(cursor, trips_df):
-    df = sanitize(trips_df, TRIP_COLUMNS)
+    rows = sanitize(trips_df, TRIP_COLUMNS)
     placeholders = ", ".join(["?"] * len(TRIP_COLUMNS))
     sql = f"INSERT INTO trips ({', '.join(TRIP_COLUMNS)}) VALUES ({placeholders})"
-    cursor.executemany(sql, df.itertuples(index=False, name=None))
+    cursor.executemany(sql, rows)
 
 
 def insert_suspicious(cursor, suspicious_df):
     if suspicious_df.empty:
         return
-    df = sanitize(suspicious_df, SUSPICIOUS_COLUMNS)
+    rows = sanitize(suspicious_df, SUSPICIOUS_COLUMNS)
     placeholders = ", ".join(["?"] * len(SUSPICIOUS_COLUMNS))
     sql = f"INSERT INTO suspicious_records ({', '.join(SUSPICIOUS_COLUMNS)}) VALUES ({placeholders})"
-    cursor.executemany(sql, df.itertuples(index=False, name=None))
+    cursor.executemany(sql, rows)
 
 
 def load_trips():
