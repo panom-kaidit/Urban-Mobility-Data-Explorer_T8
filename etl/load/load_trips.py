@@ -1,4 +1,5 @@
 import sys
+import pandas as pd
 from etl.extract import ParquetLoader
 from etl.transform.validator import DataValidator
 from etl.transform.cleaner import TripCleaner
@@ -13,31 +14,24 @@ from backend.config.database import get_connection
 def build_pipeline():
     """Load the lookup table and initialise all pipeline stages."""
     lookup_loader = LookupLoader(LOOKUP_FILE)
-    lookup_data = lookup_loader.load()
-
-    validator   = DataValidator()
-    cleaner     = TripCleaner()
-    detector    = TripOutlierDetector()
-    merger      = TripZoneMerger()
-    engineer    = TripFeatureEngineer()
-
-    return lookup_data, validator, cleaner, detector, merger, engineer
+    lookup_data   = lookup_loader.load()
+    return (
+        lookup_data,
+        DataValidator(),
+        TripCleaner(),
+        TripOutlierDetector(),
+        TripZoneMerger(),
+        TripFeatureEngineer(),
+    )
 
 
 def process_chunk(chunk, lookup_data, validator, cleaner, detector, merger, engineer):
-    """
-    Run one chunk of raw trip data through the full pipeline.
-
-    Returns:
-        cleaned_trips      — DataFrame ready to insert into trips table
-        suspicious_records — DataFrame ready to insert into suspicious_records table
-    """
-    validated       = validator.validate_trip_data(chunk)
-    cleaned         = cleaner.clean_trip_data(validated.data)
-    outlier_result  = detector.flag_trip_outliers(cleaned.data)
-    merged          = merger.append_zone_info(outlier_result.data, lookup_data)
-    featured        = engineer.add_trip_features(merged.data)
-
+    """Run one chunk through the full pipeline."""
+    validated      = validator.validate_trip_data(chunk)
+    cleaned        = cleaner.clean_trip_data(validated.data)
+    outlier_result = detector.flag_trip_outliers(cleaned.data)
+    merged         = merger.append_zone_info(outlier_result.data, lookup_data)
+    featured       = engineer.add_trip_features(merged.data)
     return featured.data, cleaned.removed_records
 
 
@@ -63,7 +57,6 @@ SUSPICIOUS_COLUMNS = [
     "removal_reason",
 ]
 
-# maps raw ETL column names to database column names
 RENAME_MAP = {
     "VendorID":              "vendor_id",
     "tpep_pickup_datetime":  "pickup_datetime",
@@ -73,45 +66,51 @@ RENAME_MAP = {
     "DOLocationID":          "do_location_id",
 }
 
+DATETIME_COLUMNS = ["pickup_datetime", "dropoff_datetime"]
 
-def insert_trips(cursor, trips_df):
-    """Rename columns and insert a batch of cleaned trips into the trips table."""
-    df = trips_df.rename(columns=RENAME_MAP)
 
-    # make sure all expected columns exist, fill missing ones with None
-    for col in TRIP_COLUMNS:
+def sanitize(df, columns):
+    """
+    Prepare a dataframe for SQLite insertion:
+    - Rename raw ETL columns to db column names
+    - Convert datetime columns to ISO strings
+    - Fill any missing expected columns with None
+    - Convert pandas NA/NaN to None
+    """
+    df = df.rename(columns=RENAME_MAP).copy()
+
+    # convert datetime columns to ISO format strings
+    for col in DATETIME_COLUMNS:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda v: v.isoformat() if pd.notna(v) and hasattr(v, "isoformat") else None
+            )
+
+    # ensure all expected columns exist
+    for col in columns:
         if col not in df.columns:
             df[col] = None
 
+    # convert all pandas NA / NaN to None for SQLite
+    df = df[columns].where(df[columns].notna(), other=None)
+
+    return df
+
+
+def insert_trips(cursor, trips_df):
+    df = sanitize(trips_df, TRIP_COLUMNS)
     placeholders = ", ".join(["?"] * len(TRIP_COLUMNS))
     sql = f"INSERT INTO trips ({', '.join(TRIP_COLUMNS)}) VALUES ({placeholders})"
-
-    rows = [
-        tuple(None if hasattr(v, '__class__') and v.__class__.__name__ in ('NAType', 'float') and str(v) in ('nan', '<NA>') else v for v in row)
-        for row in df[TRIP_COLUMNS].itertuples(index=False, name=None)
-    ]
-    cursor.executemany(sql, rows)
+    cursor.executemany(sql, df.itertuples(index=False, name=None))
 
 
 def insert_suspicious(cursor, suspicious_df):
-    """Rename columns and insert removed records into the suspicious_records table."""
     if suspicious_df.empty:
         return
-
-    df = suspicious_df.rename(columns={**RENAME_MAP, "removal_reason": "removal_reason"})
-
-    for col in SUSPICIOUS_COLUMNS:
-        if col not in df.columns:
-            df[col] = None
-
+    df = sanitize(suspicious_df, SUSPICIOUS_COLUMNS)
     placeholders = ", ".join(["?"] * len(SUSPICIOUS_COLUMNS))
     sql = f"INSERT INTO suspicious_records ({', '.join(SUSPICIOUS_COLUMNS)}) VALUES ({placeholders})"
-
-    rows = [
-        tuple(None if str(v) in ('nan', '<NA>', 'NaT') else v for v in row)
-        for row in df[SUSPICIOUS_COLUMNS].itertuples(index=False, name=None)
-    ]
-    cursor.executemany(sql, rows)
+    cursor.executemany(sql, df.itertuples(index=False, name=None))
 
 
 def load_trips():
@@ -119,19 +118,19 @@ def load_trips():
     print("Initialising pipeline...")
     lookup_data, validator, cleaner, detector, merger, engineer = build_pipeline()
 
-    loader = ParquetLoader(TRIP_DATA_FILE, chunk_size=CHUNK_SIZE)
+    loader       = ParquetLoader(TRIP_DATA_FILE, chunk_size=CHUNK_SIZE)
     total_rows   = loader.get_row_count()
     total_chunks = (total_rows // CHUNK_SIZE) + 1
     print(f"Processing {total_rows:,} rows in ~{total_chunks} chunks of {CHUNK_SIZE:,}...")
 
-    conn = get_connection()
+    conn   = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM trips")
     cursor.execute("DELETE FROM suspicious_records")
 
-    trips_inserted     = 0
+    trips_inserted      = 0
     suspicious_inserted = 0
-    chunk_num          = 0
+    chunk_num           = 0
 
     for chunk in loader.load_chunks():
         chunk_num += 1
