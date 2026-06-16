@@ -65,3 +65,40 @@ def print_audit_outputs(paths: dict[str, Path]) -> None:
     print(f" -> Summary log: {paths['summary']}")
     print(f" -> Removed records log: {paths['removed_records']}")
     print(f" -> Suspicious records log: {paths['suspicious_records']}")
+
+def test_etl_layers() -> None:
+    print("=== Testing ETL Extraction + Validation + Cleaning + Outlier + Enrichment + Feature + Audit Layers ===\n")
+    validator = DataValidator()
+    cleaner = TripCleaner()
+    outlier_detector = TripOutlierDetector()
+    zone_merger = TripZoneMerger()
+    feature_engineer = TripFeatureEngineer()
+    audit_logger = AuditLogger(LOG_DIR)
+    lookup_result = None
+
+    print(f"1. Loading and validating lookup data from {LOOKUP_FILE.name}...")
+    lookup_loader = LookupLoader(LOOKUP_FILE)
+    try:
+        lookup_df = lookup_loader.load()
+        lookup_result = validator.validate_lookup_data(lookup_df)
+        print(f" -> Success! Loaded {len(lookup_df)} lookup records.")
+        print_validation_report(lookup_result.report)
+        print(" -> Sample:")
+        print(lookup_result.data.head(2).to_string(), "\n")
+    except Exception as exc:
+        print(f" -> Error loading lookup: {exc}\n")
+
+    print(f"2. Loading and validating spatial data from {SPATIAL_FILE.name}...")
+    spatial_loader = SpatialLoader(SPATIAL_FILE)
+    try:
+        spatial_gdf = spatial_loader.load()
+        spatial_result = validator.validate_spatial_data(spatial_gdf)
+        print(f" -> Success! Loaded {len(spatial_gdf)} spatial records.")
+        print(f" -> CRS: {spatial_gdf.crs}")
+        print_validation_report(spatial_result.report)
+        print(" -> Sample:")
+        spatial_sample = spatial_result.data[['LocationID', 'borough', 'zone']].copy()
+        spatial_sample["geometry_type"] = spatial_result.data.geometry.geom_type
+        print(spatial_sample.head(2).to_string(), "\n")
+    except Exception as exc:
+        print(f" -> Error loading spatial data: {exc}\n")
