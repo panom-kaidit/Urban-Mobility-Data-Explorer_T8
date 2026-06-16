@@ -26,4 +26,15 @@ def root():
     return {
         "message": "Urban Mobility Data Explorer API"
     }
+
 init_db()
+
+
+
+# TODO: I have seen that we have an issue with the database. 
+# the issue is with recuring  creation of the database which flags the  some files as already exists.
+# give sqlite3.OperationalError: .....already exists
+# To fix it add if not exists to the create table statement in the schema.sql and indexes.sql files.
+
+
+# TODO: to run the backend, use the command: uvicorn backend.app:app --reload or python -m uvicorn backend.app:app --reload from the root of the project.
