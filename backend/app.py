@@ -16,10 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
 app.include_router(trips.router)
 app.include_router(locations.router)
 app.include_router(suspicious_records.router)
@@ -30,3 +26,4 @@ def root():
     return {
         "message": "Urban Mobility Data Explorer API"
     }
+init_db()
