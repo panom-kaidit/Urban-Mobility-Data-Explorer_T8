@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
-from .location import Base
+from backend.models.location import Base
 
 
 class Trip(Base):
