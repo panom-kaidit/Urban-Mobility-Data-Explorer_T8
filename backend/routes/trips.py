@@ -1,24 +1,170 @@
+import sqlite3
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from data import TRIPS
-from models import Trip
-
-router = APIRouter(prefix="/trips", tags=["Trips"])
+from backend.config.database import get_connection
 
 
-@router.get("", response_model=list[Trip])
-def list_trips(hour: int | None = None):
-    """All trips. Pass ?hour=8 to see only trips that started at 8am."""
-    if hour is None:
-        return TRIPS
-    return [t for t in TRIPS if t["pickup_hour"] == hour]
+router = APIRouter(prefix="/api/trips", tags=["Trips"])
 
 
-@router.get("/{trip_id}", response_model=Trip)
-def get_trip(trip_id: int):
-    """One trip by its id."""
-    for trip in TRIPS:
-        if trip["id"] == trip_id:
-            return trip
-    raise HTTPException(status_code=404, detail=f"No trip with id {trip_id}")
+def get_db():
+    """Open one SQLite connection for a request, then close it."""
+    connection = get_connection()
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+def row_to_dict(row: sqlite3.Row) -> dict:
+    """Convert a SQLite row into a normal dictionary for JSON responses."""
+    return dict(row)
+
+
+@router.get("")
+def list_trips(
+    borough: str | None = Query(default=None, description="Pickup or dropoff borough"),
+    distance: float | None = Query(default=None, ge=0, description="Maximum trip distance"),
+    fare: float | None = Query(default=None, ge=0, description="Maximum total fare"),
+    date: str | None = Query(default=None, description="Pickup date in YYYY-MM-DD format"),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """
+    Returns trips from the database. Filters by borough (pickup or dropoff),
+    max distance, max fare, and pickup date — all optional.
+    """
+    conditions = []
+    values = []
+
+    if borough:
+        conditions.append("(pickup_borough = ? OR dropoff_borough = ?)")
+        values.extend([borough, borough])
+
+    if distance is not None:
+        conditions.append("trip_distance <= ?")
+        values.append(distance)
+
+    if fare is not None:
+        conditions.append("total_amount <= ?")
+        values.append(fare)
+
+    if date:
+        conditions.append("date(pickup_datetime) = date(?)")
+        values.append(date)
+
+    where_clause = ""
+    if conditions:
+        where_clause = "WHERE " + " AND ".join(conditions)
+
+    query = f"""
+        SELECT
+            trip_id,
+            vendor_id,
+            pickup_datetime,
+            dropoff_datetime,
+            passenger_count,
+            trip_distance,
+            rate_code_id,
+            store_and_fwd_flag,
+            pu_location_id,
+            do_location_id,
+            payment_type,
+            fare_amount,
+            extra,
+            mta_tax,
+            tip_amount,
+            tolls_amount,
+            improvement_surcharge,
+            total_amount,
+            congestion_surcharge,
+            airport_fee,
+            is_outlier,
+            outlier_reasons,
+            pickup_borough,
+            pickup_zone,
+            pickup_service_zone,
+            dropoff_borough,
+            dropoff_zone,
+            dropoff_service_zone,
+            trip_duration_minutes,
+            average_speed_mph,
+            fare_per_mile,
+            pickup_hour,
+            pickup_day_of_week,
+            tip_percentage
+        FROM trips
+        {where_clause}
+        ORDER BY pickup_datetime DESC
+        LIMIT ? OFFSET ?
+    """
+    values.extend([limit, offset])
+
+    rows = db.execute(query, values).fetchall()
+
+    return {
+        "items": [row_to_dict(row) for row in rows],
+        "limit": limit,
+        "offset": offset,
+        "count": len(rows),
+    }
+
+
+@router.get("/{trip_id}")
+def get_trip(
+    trip_id: int,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return one trip by its database ID."""
+    if trip_id < 1:
+        raise HTTPException(status_code=400, detail="Trip ID must be a positive integer")
+
+    row = db.execute(
+        """
+        SELECT
+            trip_id,
+            vendor_id,
+            pickup_datetime,
+            dropoff_datetime,
+            passenger_count,
+            trip_distance,
+            rate_code_id,
+            store_and_fwd_flag,
+            pu_location_id,
+            do_location_id,
+            payment_type,
+            fare_amount,
+            extra,
+            mta_tax,
+            tip_amount,
+            tolls_amount,
+            improvement_surcharge,
+            total_amount,
+            congestion_surcharge,
+            airport_fee,
+            is_outlier,
+            outlier_reasons,
+            pickup_borough,
+            pickup_zone,
+            pickup_service_zone,
+            dropoff_borough,
+            dropoff_zone,
+            dropoff_service_zone,
+            trip_duration_minutes,
+            average_speed_mph,
+            fare_per_mile,
+            pickup_hour,
+            pickup_day_of_week,
+            tip_percentage
+        FROM trips
+        WHERE trip_id = ?
+        """,
+        (trip_id,),
+    ).fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    return row_to_dict(row)
