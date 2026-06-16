@@ -102,3 +102,85 @@ def test_etl_layers() -> None:
         print(spatial_sample.head(2).to_string(), "\n")
     except Exception as exc:
         print(f" -> Error loading spatial data: {exc}\n")
+
+    print(f"3. Loading and validating parquet data from {TRIP_DATA_FILE.name} in chunks...")
+    parquet_loader = ParquetLoader(TRIP_DATA_FILE, chunk_size=CHUNK_SIZE)
+    try:
+        schema = parquet_loader.get_schema()
+        parquet_loader.validate_schema()
+        print(f" -> Row count: {parquet_loader.get_row_count():,}")
+        print(f" -> Schema has {len(schema.names)} columns.")
+
+        # Load only the first chunk to test
+        first_chunk = next(iter(parquet_loader.load_chunks()))
+        print(f" -> Success! Loaded first chunk with {len(first_chunk)} records.")
+        trip_result = validator.validate_trip_data(first_chunk)
+        print_validation_report(trip_result.report)
+        cleaning_result = cleaner.clean_trip_data(trip_result.data)
+        print_cleaning_report(cleaning_result.report)
+        outlier_result = outlier_detector.flag_trip_outliers(cleaning_result.data)
+        print_outlier_report(outlier_result.report)
+
+        if lookup_result is None:
+            raise RuntimeError("Lookup data must load before trip enrichment.")
+
+        merge_result = zone_merger.append_zone_info(
+            outlier_result.data,
+            lookup_result.data,
+        )
+        print_merge_report(merge_result.report)
+        feature_result = feature_engineer.add_trip_features(merge_result.data)
+        print_feature_report(feature_result.report)
+        audit_summary = {
+            "lookup_validation": lookup_result.report,
+            "trip_validation": trip_result.report,
+            "cleaning": cleaning_result.report,
+            "outliers": outlier_result.report,
+            "zone_merge": merge_result.report,
+            "feature_engineering": feature_result.report,
+        }
+        audit_paths = {
+            "summary": audit_logger.write_summary(audit_summary),
+            "removed_records": audit_logger.write_removed_records(
+                cleaning_result.removed_records
+            ),
+            "suspicious_records": audit_logger.write_suspicious_records(
+                outlier_result.suspicious_records
+            ),
+        }
+        print_audit_outputs(audit_paths)
+        print(" -> Types:\n", trip_result.data[['VendorID', 'tpep_pickup_datetime', 'trip_distance']].dtypes)
+        print(" -> Sample:")
+        trip_columns = ['VendorID', 'tpep_pickup_datetime', 'trip_distance', 'total_amount']
+        enriched_columns = [
+            'VendorID',
+            'tpep_pickup_datetime',
+            'trip_distance',
+            'total_amount',
+            'pickup_zone',
+            'dropoff_zone',
+            'trip_duration_minutes',
+            'average_speed_mph',
+            'fare_per_mile',
+            'pickup_hour',
+            'pickup_day_of_week',
+            'tip_percentage',
+        ]
+        print(feature_result.data[enriched_columns + ["is_outlier"]].head(2).to_string(), "\n")
+
+        if not cleaning_result.removed_records.empty:
+            removed_columns = trip_columns + ["removal_reason"]
+            print(" -> Removed sample:")
+            print(cleaning_result.removed_records[removed_columns].head(3).to_string(), "\n")
+
+        if not outlier_result.suspicious_records.empty:
+            suspicious_columns = trip_columns + ["outlier_reasons"]
+            print(" -> Suspicious sample:")
+            print(outlier_result.suspicious_records[suspicious_columns].head(3).to_string(), "\n")
+    except StopIteration:
+        print(" -> Parquet file is empty.")
+    except Exception as exc:
+        print(f" -> Error loading parquet data: {exc}\n")
+
+if __name__ == "__main__":
+    test_etl_layers()
