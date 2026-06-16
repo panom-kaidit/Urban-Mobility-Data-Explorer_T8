@@ -18,7 +18,7 @@ SUPPORTED_SPATIAL_SUFFIXES = {
 
 
 class SpatialLoader:
-    """Load taxi zone spatial metadata from GeoJSON or shapefile sources."""
+    """Load taxi zone spatial metadata from shapefile sources."""
 
     def __init__(self, file_path: str | Path) -> None:
         self.file_path = Path(file_path)
@@ -58,5 +58,4 @@ class SpatialLoader:
             raise ValueError(f"Expected one of {supported}, got: {self.file_path}")
 
 
-class GeoJSONLoader(SpatialLoader):
-    """Backward-compatible name for the spatial metadata loader."""
+
