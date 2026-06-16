@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes import trips, locations, suspicious_records
+from backend.routes import trips, locations, suspicious_records, analytics
 from backend.config.database import init_db
 
 app = FastAPI(
@@ -19,7 +19,7 @@ app.add_middleware(
 app.include_router(trips.router)
 app.include_router(locations.router)
 app.include_router(suspicious_records.router)
-# app.include_router(analytics.router)  # will be uncomment once backend.routes.analytics exists
+app.include_router(analytics.router)
 
 @app.get("/")
 def root():
@@ -28,13 +28,6 @@ def root():
     }
 
 init_db()
-
-
-
-# TODO: I have seen that we have an issue with the database. 
-# the issue is with recuring  creation of the database which flags the  some files as already exists.
-# give sqlite3.OperationalError: .....already exists
-# To fix it add if not exists to the create table statement in the schema.sql and indexes.sql files.
 
 
 # TODO: to run the backend, use the command: uvicorn backend.app:app --reload or python -m uvicorn backend.app:app --reload from the root of the project.

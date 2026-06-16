@@ -1,10 +1,11 @@
 """
-Top-N Pickup Zones — counts how many trips started in each zone, sorts
+Top-N Pickup Zones  counts how many trips started in each zone, sorts
 them with our custom Merge Sort, and returns the top N.
 
 Time complexity: O(t + z log z), space complexity: O(z).
 """
 
+import time
 
 from backend.algorithms.merge_sort import merge_sort
 
@@ -101,8 +102,34 @@ def fetch_pickup_zone_rows(database_connection):
 
     return cursor.fetchall()
 
-
+# decided to add  timmer to investigate the time taken by the function to execute and return the top n zones
+# Both time taken to fetch the rows and  time to sort and return the top n zones will be measured
 def find_top_pickup_zones_from_database(database_connection, top_n=10):
     """Convenience wrapper for when you already have a SQLite connection."""
+
+    total_start_time = time.time()
+
+    # Measuring database fetch time separately to see how much time is spent in the database query itself
+    fetch_start_time = time.time()
+
     trip_rows = fetch_pickup_zone_rows(database_connection)
-    return find_top_pickup_zones(trip_rows, top_n)
+
+    fetch_time = time.time() - fetch_start_time
+
+    print(f"Database fetch took {fetch_time:.2f} seconds")
+    print(f"Rows fetched: {len(trip_rows)}")
+
+    # Measuring algorithm time separately to see how much time is spent in the algorithm itself
+    algorithm_start_time = time.time()
+
+    result = find_top_pickup_zones(trip_rows, top_n)
+
+    algorithm_time = time.time() - algorithm_start_time
+
+    print(f"Algorithm processing took {algorithm_time:.2f} seconds")
+
+    total_time = time.time() - total_start_time
+
+    print(f"Total execution time: {total_time:.2f} seconds")
+
+    return result
