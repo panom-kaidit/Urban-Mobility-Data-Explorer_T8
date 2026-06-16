@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import trips, locations, suspicious_records
+from backend.routes import trips, locations, suspicious_records
 
 app = FastAPI(
     title="Urban Mobility Data Explorer",
