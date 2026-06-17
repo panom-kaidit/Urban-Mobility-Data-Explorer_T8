@@ -37,12 +37,14 @@ def get_top_pickup_zones(
     }
 
 
+
 @router.get("/fare-distribution")
 def get_fare_distribution(
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Return the distribution of fares in predefined ranges.
-    This is a simple SQL query that groups fares into ranges and counts trips in each range.
+    """Return the distribution of fares across price ranges.
+    Groups fares into ranges and reports trip count, average fare,
+    and total revenue per range.
     """
     rows = db.execute(
         """
@@ -55,13 +57,16 @@ def get_fare_distribution(
                 WHEN fare_amount >= 40 AND fare_amount < 50  THEN '40-50'
                 ELSE '50+'
             END AS range,
-            COUNT(*) AS trip_count
+            COUNT(*)                    AS trip_count,
+            ROUND(AVG(fare_amount), 2)  AS avg_fare,
+            ROUND(SUM(total_amount), 2) AS total_revenue
         FROM trips
+        WHERE fare_amount > 0
         GROUP BY range
         ORDER BY MIN(fare_amount)
         """
     ).fetchall()
-
+ 
     return {
         "distribution": [dict(row) for row in rows],
     }
