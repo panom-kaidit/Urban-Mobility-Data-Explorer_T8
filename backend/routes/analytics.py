@@ -97,3 +97,28 @@ def get_revenue_by_borough(
     }
 
 
+#Get revenue by trends
+@router.get("/revenue-trends")
+def get_revenue_trends(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return daily revenue trend across the dataset's date range."""
+    rows = db.execute(
+        """
+        SELECT
+            SUBSTR(pickup_datetime, 1, 10) AS date,
+            COUNT(*)                        AS total_trips,
+            ROUND(SUM(total_amount), 2)     AS total_revenue,
+            ROUND(AVG(total_amount), 2)     AS avg_fare
+        FROM trips
+        WHERE pickup_datetime IS NOT NULL
+        GROUP BY SUBSTR(pickup_datetime, 1, 10)
+        ORDER BY date ASC
+        """
+    ).fetchall()
+ 
+    return {
+        "trend": [dict(row) for row in rows],
+    }
+ 
+
