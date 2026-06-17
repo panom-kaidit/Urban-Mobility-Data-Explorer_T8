@@ -121,4 +121,37 @@ def get_revenue_trends(
         "trend": [dict(row) for row in rows],
     }
  
-
+#Get Average fare
+@router.get("/average-fare")
+def get_average_fare(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return average fare, tip, and total broken down by borough and payment method."""
+    rows = db.execute(
+        """
+        SELECT
+            pickup_borough              AS borough,
+            CASE payment_type
+                WHEN 1 THEN 'Credit Card'
+                WHEN 2 THEN 'Cash'
+                WHEN 3 THEN 'No Charge'
+                WHEN 4 THEN 'Dispute'
+                ELSE 'Other'
+            END                         AS payment_method,
+            COUNT(*)                    AS total_trips,
+            ROUND(AVG(fare_amount), 2)  AS avg_fare,
+            ROUND(AVG(tip_amount), 2)   AS avg_tip,
+            ROUND(AVG(total_amount), 2) AS avg_total
+        FROM trips
+        WHERE pickup_borough IS NOT NULL
+          AND pickup_borough != 'Unknown'
+          AND fare_amount > 0
+        GROUP BY pickup_borough, payment_type
+        ORDER BY pickup_borough, total_trips DESC
+        """
+    ).fetchall()
+ 
+    return {
+        "fares": [dict(row) for row in rows],
+    }
+ 
