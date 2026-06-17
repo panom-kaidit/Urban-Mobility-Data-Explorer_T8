@@ -70,3 +70,30 @@ def get_fare_distribution(
     return {
         "distribution": [dict(row) for row in rows],
     }
+#Get revenue-by borough
+
+@router.get("/revenue-by-borough")
+def get_revenue_by_borough(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return total revenue grouped by pickup borough, ordered highest first."""
+    rows = db.execute(
+        """
+        SELECT
+            pickup_borough              AS borough,
+            COUNT(*)                    AS total_trips,
+            ROUND(SUM(total_amount), 2) AS total_revenue,
+            ROUND(AVG(total_amount), 2) AS avg_revenue_per_trip
+        FROM trips
+        WHERE pickup_borough IS NOT NULL
+          AND pickup_borough != 'Unknown'
+        GROUP BY pickup_borough
+        ORDER BY total_revenue DESC
+        """
+    ).fetchall()
+
+    return {
+        "boroughs": [dict(row) for row in rows],
+    }
+
+
