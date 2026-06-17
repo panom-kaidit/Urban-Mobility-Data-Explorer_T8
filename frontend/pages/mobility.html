@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobility Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+    <main>
+        <h1>Mobility Analytics</h1>
+        <p class="page-subtitle">Trip destination demand and hourly travel distance patterns.</p>
+
+        <section class="chart-grid">
+            <article class="chart-card">
+                <h2>Top Dropoff Zones</h2>
+                <p class="chart-note">Where taxi trips most often end.</p>
+                <div class="chart-box">
+                    <canvas id="topDropoffZonesChart"></canvas>
+                </div>
+                <p id="dropoffStatus" class="status-text"></p>
+            </article>
+
+            <article class="chart-card">
+                <h2>Average Distance by Pickup Hour</h2>
+                <p class="chart-note">How trip distance changes throughout the day.</p>
+                <div class="chart-box">
+                    <canvas id="averageDistanceChart"></canvas>
+                </div>
+                <p id="distanceStatus" class="status-text"></p>
+            </article>
+        </section>
+    </main>
+
+    <script src="../js/mobility.js"></script>
+</body>
+</html>
