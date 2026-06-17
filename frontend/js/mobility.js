@@ -55,3 +55,96 @@ async function fetchJson(url) {
     return response.json();
 }
 
+function renderTopDropoffChart(zones) {
+    const chartCanvas = document.getElementById("topDropoffZonesChart");
+    const labels = zones.map((item) => item.dropoff_zone);
+    const values = zones.map((item) => item.trip_count);
+
+    new Chart(chartCanvas, {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Trip Count",
+                    data: values,
+                    backgroundColor: "#2874a6",
+                    borderRadius: 4,
+                },
+            ],
+        },
+        options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "Trip Count",
+                    },
+                    beginAtZero: true,
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: "Dropoff Zone",
+                    },
+                },
+            },
+        },
+    });
+}
+
+function renderAverageDistanceChart(hours) {
+    const chartCanvas = document.getElementById("averageDistanceChart");
+    const labels = hours.map((item) => item.pickup_hour);
+    const values = hours.map((item) => item.average_distance);
+
+    new Chart(chartCanvas, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Average Distance (Miles)",
+                    data: values,
+                    borderColor: "#1e8449",
+                    backgroundColor: "rgba(30, 132, 73, 0.12)",
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: 3,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "Pickup Hour",
+                    },
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: "Average Distance (Miles)",
+                    },
+                    beginAtZero: true,
+                },
+            },
+        },
+    });
+}
