@@ -109,5 +109,69 @@ async function loadRevenueTrend() {
   });
 }
 
+async function loadAverageFare() {
+  const data = await fetchJSON("/analytics/average-fare");
+  const rows = data.fares;
+
+  // Focus on the two dominant payment methods per borough to keep the
+  // chart readable — Credit Card and Cash account for the vast majority
+  // of trips, and comparing them is the most useful story here.
+  const boroughs = [...new Set(rows.map(r => r.borough))];
+  const creditCard = boroughs.map(b => {
+    const row = rows.find(r => r.borough === b && r.payment_method === "Credit Card");
+    return row ? row.avg_fare : 0;
+  });
+  const cash = boroughs.map(b => {
+    const row = rows.find(r => r.borough === b && r.payment_method === "Cash");
+    return row ? row.avg_fare : 0;
+  });
+
+  const ccAvg = creditCard.reduce((a, b) => a + b, 0) / creditCard.length;
+  const cashAvg = cash.reduce((a, b) => a + b, 0) / cash.length;
+  const higher = ccAvg > cashAvg ? "Credit card" : "Cash";
+
+  document.getElementById("caption-fare").textContent =
+    `${higher} fares run higher on average across boroughs.`;
+
+  new Chart(document.getElementById("chart-average-fare"), {
+    type: "bar",
+    data: {
+      labels: boroughs,
+      datasets: [
+        {
+          label: "Credit Card",
+          data: creditCard,
+          backgroundColor: "#FCCC0A",
+          borderRadius: 4,
+        },
+        {
+          label: "Cash",
+          data: cash,
+          backgroundColor: "#4D7FE0",
+          borderRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#F2F1ED" } },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#9AA0AC" },
+          grid: { display: false },
+        },
+        y: {
+          ticks: { color: "#9AA0AC", callback: v => "$" + v },
+          grid: { color: "#2A2E37" },
+        },
+      },
+    },
+  });
+}
+
 loadRevenueByBorough();
 loadRevenueTrend();
+loadAverageFare();
