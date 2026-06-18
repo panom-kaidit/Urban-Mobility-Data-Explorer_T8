@@ -172,6 +172,45 @@ async function loadAverageFare() {
   });
 }
 
+async function loadFareDistribution() {
+  const data = await fetchJSON("/analytics/fare-distribution");
+  const rows = data.distribution;
+
+  const busiest = rows.reduce((max, r) => r.trip_count > max.trip_count ? r : max, rows[0]);
+
+  document.getElementById("caption-distribution").textContent =
+    `Most trips fall in the $${busiest.range} range, at an average of $${busiest.avg_fare}.`;
+
+  new Chart(document.getElementById("chart-fare-distribution"), {
+    type: "bar",
+    data: {
+      labels: rows.map(r => "$" + r.range),
+      datasets: [{
+        label: "Trips",
+        data: rows.map(r => r.trip_count),
+        backgroundColor: "#FF6319",
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: "#9AA0AC" },
+          grid: { display: false },
+        },
+        y: {
+          ticks: { color: "#9AA0AC", callback: v => (v / 1e6).toFixed(1) + "M" },
+          grid: { color: "#2A2E37" },
+        },
+      },
+    },
+  });
+}
+
 loadRevenueByBorough();
 loadRevenueTrend();
 loadAverageFare();
+loadFareDistribution();
