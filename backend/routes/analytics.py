@@ -18,9 +18,24 @@ def display_borough(value):
     return value
 
 
+def display_service_zone(value):
+    """Return a UI-friendly service-zone label without changing stored lookup data."""
+    if value == "N/A":
+        return "Unknown / N/A"
+    return value
+
+
 def zone_row_to_dict(row):
     item = dict(row)
     item["borough"] = display_borough(item.get("borough"))
+    if "service_zone" in item:
+        item["service_zone"] = display_service_zone(item.get("service_zone"))
+    return item
+
+
+def service_row_to_dict(row):
+    item = dict(row)
+    item["service_zone"] = display_service_zone(item.get("service_zone"))
     return item
 
 
@@ -157,7 +172,7 @@ def get_dashboard_metrics(
     return {
         "summary": summary,
         "boroughs": [dict(row) for row in borough_rows],
-        "service_zones": [dict(row) for row in service_rows],
+        "service_zones": [service_row_to_dict(row) for row in service_rows],
         "top_zones": [zone_row_to_dict(row) for row in top_zone_rows],
         "fare_distribution": [dict(row) for row in fare_rows],
     }

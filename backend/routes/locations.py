@@ -16,6 +16,13 @@ def display_borough(value):
     return value
 
 
+def display_service_zone(value):
+    """Return a UI-friendly service-zone label without changing stored lookup data."""
+    if value == "N/A":
+        return "Unknown / N/A"
+    return value
+
+
 def get_db():
     """Open one SQLite connection for a request, then close it."""
     connection = get_connection()
@@ -61,7 +68,7 @@ def get_zone_map_summary(
                 "location_id": row["location_id"],
                 "borough": display_borough(row["borough"]),
                 "zone": row["zone"],
-                "service_zone": row["service_zone"],
+                "service_zone": display_service_zone(row["service_zone"]),
                 "trip_count": row["trip_count"],
                 "total_revenue": row["total_revenue"],
                 "avg_fare": row["avg_fare"],
@@ -107,4 +114,5 @@ def get_zone(
 
     zone = dict(row)
     zone["borough"] = display_borough(zone["borough"])
+    zone["service_zone"] = display_service_zone(zone["service_zone"])
     return zone
