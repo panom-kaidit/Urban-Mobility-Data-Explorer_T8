@@ -21,7 +21,6 @@ async function loadRevenueByBorough() {
   const data = await fetchJSON("/analytics/revenue-by-borough");
   const boroughs = data.boroughs;
 
-  // derive KPIs from this single response — no extra endpoint needed
   const totalRevenue = boroughs.reduce((sum, b) => sum + b.total_revenue, 0);
   const totalTrips    = boroughs.reduce((sum, b) => sum + b.total_trips, 0);
   const avgFare        = totalRevenue / totalTrips;
@@ -67,4 +66,48 @@ async function loadRevenueByBorough() {
   });
 }
 
+async function loadRevenueTrend() {
+  const data = await fetchJSON("/analytics/revenue-trends");
+  const trend = data.trend;
+
+  const peakDay = trend.reduce((max, d) => d.total_revenue > max.total_revenue ? d : max, trend[0]);
+  const peakLabel = new Date(peakDay.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  document.getElementById("caption-trend").textContent =
+    `Peak day was ${peakLabel} with ${formatCurrency(peakDay.total_revenue)} in revenue.`;
+
+  new Chart(document.getElementById("chart-revenue-trend"), {
+    type: "line",
+    data: {
+      labels: trend.map(d => new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
+      datasets: [{
+        label: "Daily Revenue",
+        data: trend.map(d => d.total_revenue),
+        borderColor: "#FCCC0A",
+        backgroundColor: "rgba(252, 204, 10, 0.12)",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: "#9AA0AC", maxTicksLimit: 8 },
+          grid: { display: false },
+        },
+        y: {
+          ticks: { color: "#9AA0AC", callback: v => "$" + (v / 1000).toFixed(0) + "K" },
+          grid: { color: "#2A2E37" },
+        },
+      },
+    },
+  });
+}
+
 loadRevenueByBorough();
+loadRevenueTrend();
