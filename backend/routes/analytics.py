@@ -20,6 +20,47 @@ def get_db():
         connection.close()
 
 
+@router.get("/dashboard-summary")
+def get_dashboard_summary(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return the main numbers used at the top of the dashboard."""
+    summary = db.execute(
+        """
+        SELECT
+            COUNT(*) AS total_trips,
+            ROUND(SUM(total_amount), 2) AS total_revenue,
+            ROUND(AVG(total_amount), 2) AS avg_fare,
+            ROUND(AVG(trip_distance), 2) AS avg_distance,
+            SUM(CASE WHEN is_outlier = 1 THEN 1 ELSE 0 END) AS outlier_trips
+        FROM trips
+        """
+    ).fetchone()
+
+    top_borough = db.execute(
+        """
+        SELECT
+            pickup_borough AS borough,
+            COUNT(*) AS trip_count
+        FROM trips
+        WHERE pickup_borough IS NOT NULL
+          AND pickup_borough != 'Unknown'
+        GROUP BY pickup_borough
+        ORDER BY trip_count DESC
+        LIMIT 1
+        """
+    ).fetchone()
+
+    return {
+        "total_trips": summary["total_trips"],
+        "total_revenue": summary["total_revenue"],
+        "avg_fare": summary["avg_fare"],
+        "avg_distance": summary["avg_distance"],
+        "outlier_trips": summary["outlier_trips"],
+        "top_borough": dict(top_borough) if top_borough else None,
+    }
+
+
 @router.get("/top-pickup-zones")
 def get_top_pickup_zones(
     top_n: int = Query(default=10, ge=1, le=265, description="Number of top zones to return"),
@@ -46,6 +87,23 @@ def get_fare_distribution(
     Groups fares into ranges and reports trip count, average fare,
     and total revenue per range.
     """
+    cached_rows = db.execute(
+        """
+        SELECT
+            fare_range AS range,
+            trip_count,
+            avg_fare,
+            total_revenue
+        FROM fare_distribution_metrics
+        ORDER BY sort_order
+        """
+    ).fetchall()
+
+    if cached_rows:
+        return {
+            "distribution": [dict(row) for row in cached_rows],
+        }
+
     rows = db.execute(
         """
         SELECT

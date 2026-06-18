@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -15,6 +16,56 @@ def get_db():
         yield connection
     finally:
         connection.close()
+
+
+@router.get("/map/summary")
+def get_zone_map_summary(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return zone boundaries with basic pickup metrics for the map."""
+    rows = db.execute(
+        """
+        SELECT
+            locations.location_id,
+            locations.borough,
+            locations.zone,
+            locations.service_zone,
+            zone_boundaries.geometry,
+            COALESCE(zone_metrics.trip_count, 0) AS trip_count,
+            COALESCE(zone_metrics.total_revenue, 0) AS total_revenue,
+            zone_metrics.avg_fare,
+            zone_metrics.avg_distance
+        FROM locations
+        LEFT JOIN zone_boundaries
+            ON zone_boundaries.location_id = locations.location_id
+        LEFT JOIN zone_metrics
+            ON zone_metrics.location_id = locations.location_id
+        WHERE zone_boundaries.geometry IS NOT NULL
+        ORDER BY trip_count DESC
+        """
+    ).fetchall()
+
+    features = []
+    for row in rows:
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(row["geometry"]),
+            "properties": {
+                "location_id": row["location_id"],
+                "borough": row["borough"],
+                "zone": row["zone"],
+                "service_zone": row["service_zone"],
+                "trip_count": row["trip_count"],
+                "total_revenue": row["total_revenue"],
+                "avg_fare": row["avg_fare"],
+                "avg_distance": row["avg_distance"],
+            },
+        })
+
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+    }
 
 
 @router.get("/{zone_id}")
