@@ -20,9 +20,6 @@
 
       <nav class="nav-list">
         <a class="nav-link active" href="#">Overview</a>
-        <a class="nav-link" href="#">Demand</a>
-        <a class="nav-link" href="#">Revenue</a>
-        <a class="nav-link" href="#">Data Quality</a>
       </nav>
 
       <div class="sidebar-note">
@@ -39,70 +36,29 @@
         </div>
         <div class="topbar-actions">
           <span class="load-status" id="load-status">Loading data</span>
-          <button class="ghost-button" id="reset-view" type="button">Reset</button>
           <button class="primary-button" id="export-view" type="button">Export View</button>
         </div>
       </header>
 
-      <section class="filter-panel" aria-label="Dashboard filters">
-        <label>
-          Borough
-          <select id="borough-filter">
-            <option value="all">All boroughs</option>
-          </select>
-        </label>
-
-        <label>
-          Pickup period
-          <select id="period-filter" disabled>
-            <option value="all">Full month</option>
-            <option value="weekday">Weekdays</option>
-            <option value="weekend">Weekends</option>
-            <option value="morning">Morning peak</option>
-            <option value="evening">Evening peak</option>
-          </select>
-        </label>
-
-        <label>
-          Map metric
-          <select id="map-metric-filter">
-            <option value="trip_count">Pickup volume</option>
-            <option value="total_revenue">Total revenue</option>
-            <option value="avg_fare">Average fare</option>
-            <option value="avg_distance">Average distance</option>
-          </select>
-        </label>
-
-        <label>
-          Zone view
-          <select id="zone-view-filter" disabled>
-            <option value="taxi_zones">Taxi zones</option>
-            <option value="boroughs">Boroughs</option>
-            <option value="service_zones">Service zones</option>
-          </select>
-        </label>
-      </section>
+      
 
       <section class="kpi-grid" aria-label="Summary metrics">
         <article class="kpi-card">
           <span>Total Trips</span>
           <strong id="total-trips">--</strong>
-          <small>Loaded from backend</small>
         </article>
         <article class="kpi-card">
           <span>Total Revenue</span>
           <strong id="total-revenue">--</strong>
-          <small>Loaded from backend</small>
+          
         </article>
         <article class="kpi-card">
           <span>Average Fare</span>
           <strong id="average-fare">--</strong>
-          <small>Loaded from backend</small>
         </article>
         <article class="kpi-card">
-          <span>Top Borough</span>
+          <span>Top Pickup Borough</span>
           <strong id="top-borough">--</strong>
-          <small>Loaded from backend</small>
         </article>
       </section>
 
@@ -161,18 +117,6 @@
             </div>
           </dl>
         </aside>
-
-        <article class="panel chart-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Borough comparison</h2>
-              <p>Trips and revenue by pickup borough.</p>
-            </div>
-          </div>
-          <div class="chart-box">
-            <canvas id="borough-chart"></canvas>
-          </div>
-        </article>
 
         <article class="panel chart-panel">
           <div class="panel-header">
