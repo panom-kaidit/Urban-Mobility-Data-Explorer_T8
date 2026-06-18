@@ -108,13 +108,26 @@ select {
 
 .nav-caret {
   color: var(--rose);
+  font-size: 0;
+}
+
+.nav-caret::after {
+  content: "^";
   font-size: 13px;
+}
+
+.nav-group.collapsed .nav-caret::after {
+  content: "v";
 }
 
 .nav-sublist {
   display: grid;
   gap: 3px;
   padding-left: 18px;
+}
+
+.nav-group.collapsed .nav-sublist {
+  display: none;
 }
 
 .nav-sublink {
