@@ -24,6 +24,7 @@ function renderMap(zoneGeoJson) {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(nycMap);
 
+  window.addEventListener("resize", refreshMapSize);
   drawZoneLayer();
 }
 
@@ -83,6 +84,16 @@ function resetMapView() {
   selectedBorough = "all";
   selectedMetric = "trip_count";
   drawZoneLayer();
+}
+
+function refreshMapSize() {
+  if (!nycMap) {
+    return;
+  }
+
+  setTimeout(function () {
+    nycMap.invalidateSize();
+  }, 50);
 }
 
 function getVisibleZoneData() {

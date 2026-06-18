@@ -198,6 +198,10 @@ function showView(viewName) {
     setStatisticsMenuExpanded(true);
     loadStatsTab(activeStatsTab);
   }
+
+  if (viewName === "overview") {
+    refreshMapSize();
+  }
 }
 
 function toggleStatisticsMenu() {
@@ -324,16 +328,16 @@ function renderRevenueRankingRows(data) {
 
     if (revenueRankType === "boroughs") {
       row.innerHTML =
-        "<span>" + (data.offset + index + 1) + "</span>" +
-        "<span>" + escapeHtml(item.borough || "--") + "</span>" +
-        "<span>" + formatNumber(item.zone_count) + "</span>" +
-        "<span>" + formatMoney(item.total_revenue) + "</span>";
+        '<span data-label="Rank">' + (data.offset + index + 1) + "</span>" +
+        '<span data-label="Borough">' + escapeHtml(item.borough || "--") + "</span>" +
+        '<span data-label="Zones">' + formatNumber(item.zone_count) + "</span>" +
+        '<span data-label="Revenue">' + formatMoney(item.total_revenue) + "</span>";
     } else {
       row.innerHTML =
-        "<span>" + (data.offset + index + 1) + "</span>" +
-        "<span>" + escapeHtml(item.zone_name || "--") + "</span>" +
-        "<span>" + escapeHtml(item.borough || "--") + "</span>" +
-        "<span>" + formatMoney(item.total_revenue) + "</span>";
+        '<span data-label="Rank">' + (data.offset + index + 1) + "</span>" +
+        '<span data-label="Zone">' + escapeHtml(item.zone_name || "--") + "</span>" +
+        '<span data-label="Borough">' + escapeHtml(item.borough || "--") + "</span>" +
+        '<span data-label="Revenue">' + formatMoney(item.total_revenue) + "</span>";
     }
 
     list.appendChild(row);
@@ -354,11 +358,11 @@ function renderBoroughTripRows(data) {
     const row = document.createElement("div");
     row.className = "stats-row";
     row.innerHTML =
-      "<span>" + (data.offset + index + 1) + "</span>" +
-      "<span>" + escapeHtml(borough.borough || "--") + "</span>" +
-      "<span>" + formatNumber(borough.total_trips) + "</span>" +
-      "<span>" + formatMoney(borough.total_revenue) + "</span>" +
-      "<span>" + formatMoney(borough.avg_fare) + "</span>";
+      '<span data-label="Rank">' + (data.offset + index + 1) + "</span>" +
+      '<span data-label="Borough">' + escapeHtml(borough.borough || "--") + "</span>" +
+      '<span data-label="Trips">' + formatNumber(borough.total_trips) + "</span>" +
+      '<span data-label="Revenue">' + formatMoney(borough.total_revenue) + "</span>" +
+      '<span data-label="Avg fare">' + formatMoney(borough.avg_fare) + "</span>";
     list.appendChild(row);
   });
 }
@@ -431,7 +435,7 @@ function buildServiceZonesFromFeatures(features) {
 
   features.forEach(function (feature) {
     const zone = feature.properties;
-    const key = zone.service_zone || "Unknown";
+    const key = displayCategory(zone.service_zone);
 
     if (!grouped[key]) {
       grouped[key] = {

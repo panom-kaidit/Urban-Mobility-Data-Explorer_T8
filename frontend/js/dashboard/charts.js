@@ -46,7 +46,7 @@ function renderServiceChart(rows) {
     type: "doughnut",
     data: {
       labels: rows.map(function (row) {
-        return row.service_zone;
+        return displayCategory(row.service_zone);
       }),
       datasets: [
         {
@@ -86,7 +86,7 @@ function renderServiceZoneList(rows) {
     const item = document.createElement("li");
     item.innerHTML =
       '<span style="background:' + chartColors[index % chartColors.length] + '"></span>' +
-      escapeHtml(row.service_zone || "Unknown") +
+      escapeHtml(displayCategory(row.service_zone)) +
       " - " +
       formatShortNumber(row.total_trips);
     list.appendChild(item);
@@ -101,10 +101,10 @@ function renderTopZones(rows) {
     const item = document.createElement("div");
     item.className = "zone-row";
     item.innerHTML =
-      "<span>" + escapeHtml(zone.zone_name || "--") + "</span>" +
-      "<span>" + escapeHtml(zone.borough || "--") + "</span>" +
-      "<span>" + formatShortNumber(zone.trip_count) + "</span>" +
-      "<span>" + formatMoney(zone.total_revenue) + "</span>";
+      '<span data-label="Zone">' + escapeHtml(zone.zone_name || "--") + "</span>" +
+      '<span data-label="Borough">' + escapeHtml(zone.borough || "--") + "</span>" +
+      '<span data-label="Trips">' + formatShortNumber(zone.trip_count) + "</span>" +
+      '<span data-label="Revenue">' + formatMoney(zone.total_revenue) + "</span>";
     list.appendChild(item);
   });
 }
@@ -179,4 +179,16 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function displayCategory(value) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  if (value === "N/A") {
+    return "unspecified";
+  }
+
+  return value;
 }
