@@ -37,12 +37,14 @@ def get_top_pickup_zones(
     }
 
 
+
 @router.get("/fare-distribution")
 def get_fare_distribution(
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Return the distribution of fares in predefined ranges.
-    This is a simple SQL query that groups fares into ranges and counts trips in each range.
+    """Return the distribution of fares across price ranges.
+    Groups fares into ranges and reports trip count, average fare,
+    and total revenue per range.
     """
     rows = db.execute(
         """
@@ -55,13 +57,101 @@ def get_fare_distribution(
                 WHEN fare_amount >= 40 AND fare_amount < 50  THEN '40-50'
                 ELSE '50+'
             END AS range,
-            COUNT(*) AS trip_count
+            COUNT(*)                    AS trip_count,
+            ROUND(AVG(fare_amount), 2)  AS avg_fare,
+            ROUND(SUM(total_amount), 2) AS total_revenue
         FROM trips
+        WHERE fare_amount > 0
         GROUP BY range
         ORDER BY MIN(fare_amount)
         """
     ).fetchall()
-
+ 
     return {
         "distribution": [dict(row) for row in rows],
     }
+#Get revenue-by borough
+
+@router.get("/revenue-by-borough")
+def get_revenue_by_borough(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return total revenue grouped by pickup borough, ordered highest first."""
+    rows = db.execute(
+        """
+        SELECT
+            pickup_borough              AS borough,
+            COUNT(*)                    AS total_trips,
+            ROUND(SUM(total_amount), 2) AS total_revenue,
+            ROUND(AVG(total_amount), 2) AS avg_revenue_per_trip
+        FROM trips
+        WHERE pickup_borough IS NOT NULL
+          AND pickup_borough != 'Unknown'
+        GROUP BY pickup_borough
+        ORDER BY total_revenue DESC
+        """
+    ).fetchall()
+
+    return {
+        "boroughs": [dict(row) for row in rows],
+    }
+
+
+#Get revenue by trends
+@router.get("/revenue-trends")
+def get_revenue_trends(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return daily revenue trend across the dataset's date range."""
+    rows = db.execute(
+        """
+        SELECT
+            SUBSTR(pickup_datetime, 1, 10) AS date,
+            COUNT(*)                        AS total_trips,
+            ROUND(SUM(total_amount), 2)     AS total_revenue,
+            ROUND(AVG(total_amount), 2)     AS avg_fare
+        FROM trips
+        WHERE pickup_datetime IS NOT NULL
+        GROUP BY SUBSTR(pickup_datetime, 1, 10)
+        ORDER BY date ASC
+        """
+    ).fetchall()
+ 
+    return {
+        "trend": [dict(row) for row in rows],
+    }
+ 
+#Get Average fare
+@router.get("/average-fare")
+def get_average_fare(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return average fare, tip, and total broken down by borough and payment method."""
+    rows = db.execute(
+        """
+        SELECT
+            pickup_borough              AS borough,
+            CASE payment_type
+                WHEN 1 THEN 'Credit Card'
+                WHEN 2 THEN 'Cash'
+                WHEN 3 THEN 'No Charge'
+                WHEN 4 THEN 'Dispute'
+                ELSE 'Other'
+            END                         AS payment_method,
+            COUNT(*)                    AS total_trips,
+            ROUND(AVG(fare_amount), 2)  AS avg_fare,
+            ROUND(AVG(tip_amount), 2)   AS avg_tip,
+            ROUND(AVG(total_amount), 2) AS avg_total
+        FROM trips
+        WHERE pickup_borough IS NOT NULL
+          AND pickup_borough != 'Unknown'
+          AND fare_amount > 0
+        GROUP BY pickup_borough, payment_type
+        ORDER BY pickup_borough, total_trips DESC
+        """
+    ).fetchall()
+ 
+    return {
+        "fares": [dict(row) for row in rows],
+    }
+ 

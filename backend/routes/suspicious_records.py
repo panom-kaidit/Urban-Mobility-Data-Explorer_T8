@@ -29,6 +29,12 @@ def list_suspicious_records(
     The response already includes limit, offset, and count so it can grow into
     full pagination later without changing the frontend shape too much.
     """
+    # Run a separate count query so the response count shows the full number of
+    # suspicious records, not just the number returned on this page.
+    total_count = db.execute(
+        "SELECT COUNT(*) FROM suspicious_records"
+    ).fetchone()[0]
+
     rows = db.execute(
         """
         SELECT
@@ -65,5 +71,5 @@ def list_suspicious_records(
         "items": [dict(row) for row in rows],
         "limit": limit,
         "offset": offset,
-        "count": len(rows),
+        "count": total_count,
     }
