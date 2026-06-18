@@ -130,6 +130,12 @@ function bindControls() {
   viewLinks.forEach(function (link) {
     link.addEventListener("click", function (event) {
       event.preventDefault();
+
+      if (link.dataset.viewLink === "statistics") {
+        toggleStatisticsMenu();
+        return;
+      }
+
       showView(link.dataset.viewLink);
     });
   });
@@ -177,7 +183,6 @@ function setActiveMetricButton(metricName) {
 function showView(viewName) {
   const views = document.querySelectorAll(".dashboard-view");
   const links = document.querySelectorAll("[data-view-link]");
-  const groupToggle = document.querySelector(".nav-group-toggle");
 
   views.forEach(function (view) {
     view.classList.toggle("hidden", view.id !== viewName + "-view");
@@ -188,11 +193,35 @@ function showView(viewName) {
   });
 
   if (viewName === "statistics") {
-    if (groupToggle) {
-      groupToggle.setAttribute("aria-expanded", "true");
-    }
-
+    setStatisticsMenuExpanded(true);
     loadStatsTab(activeStatsTab);
+  }
+}
+
+function toggleStatisticsMenu() {
+  const statisticsView = document.getElementById("statistics-view");
+  const isStatisticsOpen = statisticsView && !statisticsView.classList.contains("hidden");
+  const group = document.querySelector(".nav-group");
+  const isExpanded = group && !group.classList.contains("collapsed");
+
+  if (!isStatisticsOpen) {
+    showView("statistics");
+    return;
+  }
+
+  setStatisticsMenuExpanded(!isExpanded);
+}
+
+function setStatisticsMenuExpanded(isExpanded) {
+  const group = document.querySelector(".nav-group");
+  const toggle = document.querySelector(".nav-group-toggle");
+
+  if (group) {
+    group.classList.toggle("collapsed", !isExpanded);
+  }
+
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(isExpanded));
   }
 }
 
@@ -203,6 +232,7 @@ function showStatsTab(tabName) {
   const links = document.querySelectorAll("[data-view-link]");
 
   activeStatsTab = tabName;
+  setStatisticsMenuExpanded(true);
 
   views.forEach(function (view) {
     view.classList.toggle("hidden", view.id !== "statistics-view");
