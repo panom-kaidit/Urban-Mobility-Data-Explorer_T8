@@ -95,7 +95,6 @@ def get_revenue_by_borough(
         "boroughs": [dict(row) for row in rows],
     }
 
-
 @router.get("/revenue-trends")
 def get_revenue_trends(
     db: sqlite3.Connection = Depends(get_db),
@@ -208,4 +207,4 @@ def get_average_distance_by_pickup_hour(
             for hour in range(24)
         ],
     }
- 
+
