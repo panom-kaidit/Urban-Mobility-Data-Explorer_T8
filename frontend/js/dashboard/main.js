@@ -1,5 +1,18 @@
 let dashboardMetrics;
 let dashboardZones;
+let activeStatsTab = "zone-revenue";
+
+const statsPageSize = 10;
+const statsOffsets = {
+  "zone-revenue": 0,
+  "borough-trips": 0,
+};
+
+const statsLoaded = {
+  "zone-revenue": false,
+  "hourly-trips": false,
+  "borough-trips": false,
+};
 
 document.addEventListener("DOMContentLoaded", initDashboard);
 
@@ -64,6 +77,9 @@ function bindControls() {
   const resetButton = document.getElementById("reset-view");
   const exportButton = document.getElementById("export-view");
   const metricButtons = document.querySelectorAll("[data-map-metric]");
+  const viewLinks = document.querySelectorAll("[data-view-link]");
+  const statTabs = document.querySelectorAll("[data-stat-tab]");
+  const statPageButtons = document.querySelectorAll("[data-stat-page]");
 
   if (boroughFilter) {
     boroughFilter.addEventListener("change", function (event) {
@@ -109,6 +125,25 @@ function bindControls() {
       exportTopZones();
     });
   }
+
+  viewLinks.forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      showView(link.dataset.viewLink);
+    });
+  });
+
+  statTabs.forEach(function (button) {
+    button.addEventListener("click", function () {
+      showStatsTab(button.dataset.statTab);
+    });
+  });
+
+  statPageButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      changeStatsPage(button.dataset.statPage, Number(button.dataset.pageStep));
+    });
+  });
 }
 
 function updateMapMetric(metricName) {
@@ -128,6 +163,154 @@ function setActiveMetricButton(metricName) {
   buttons.forEach(function (button) {
     button.classList.toggle("active", button.dataset.mapMetric === metricName);
   });
+}
+
+function showView(viewName) {
+  const views = document.querySelectorAll(".dashboard-view");
+  const links = document.querySelectorAll("[data-view-link]");
+  const groupToggle = document.querySelector(".nav-group-toggle");
+
+  views.forEach(function (view) {
+    view.classList.toggle("hidden", view.id !== viewName + "-view");
+  });
+
+  links.forEach(function (link) {
+    link.classList.toggle("active", link.dataset.viewLink === viewName);
+  });
+
+  if (viewName === "statistics") {
+    if (groupToggle) {
+      groupToggle.setAttribute("aria-expanded", "true");
+    }
+
+    loadStatsTab(activeStatsTab);
+  }
+}
+
+function showStatsTab(tabName) {
+  const buttons = document.querySelectorAll("[data-stat-tab]");
+  const panels = document.querySelectorAll(".stat-tab-panel");
+  const views = document.querySelectorAll(".dashboard-view");
+  const links = document.querySelectorAll("[data-view-link]");
+
+  activeStatsTab = tabName;
+
+  views.forEach(function (view) {
+    view.classList.toggle("hidden", view.id !== "statistics-view");
+  });
+
+  links.forEach(function (link) {
+    link.classList.toggle("active", link.dataset.viewLink === "statistics");
+  });
+
+  buttons.forEach(function (button) {
+    button.classList.toggle("active", button.dataset.statTab === tabName);
+  });
+
+  panels.forEach(function (panel) {
+    panel.classList.toggle("hidden", panel.id !== tabName + "-tab");
+  });
+
+  loadStatsTab(tabName);
+}
+
+function loadStatsTab(tabName) {
+  if (tabName === "zone-revenue") {
+    loadZoneRevenueRanking();
+  }
+
+  if (tabName === "hourly-trips" && !statsLoaded["hourly-trips"]) {
+    loadHourlyTripCounts();
+  }
+
+  if (tabName === "borough-trips") {
+    loadBoroughTripRanking();
+  }
+}
+
+function changeStatsPage(tabName, step) {
+  const nextOffset = Math.max(0, statsOffsets[tabName] + (step * statsPageSize));
+
+  if (nextOffset === statsOffsets[tabName]) {
+    return;
+  }
+
+  statsOffsets[tabName] = nextOffset;
+
+  if (tabName === "zone-revenue") {
+    loadZoneRevenueRanking();
+  }
+
+  if (tabName === "borough-trips") {
+    loadBoroughTripRanking();
+  }
+}
+
+async function loadZoneRevenueRanking() {
+  const data = await getZoneRevenueRanking(statsPageSize, statsOffsets["zone-revenue"]);
+  renderZoneRevenueRows(data);
+  statsLoaded["zone-revenue"] = true;
+}
+
+async function loadHourlyTripCounts() {
+  const data = await getHourlyTripCounts();
+  renderHourlyTripsChart(data.hours);
+  statsLoaded["hourly-trips"] = true;
+}
+
+async function loadBoroughTripRanking() {
+  const data = await getBoroughTripRanking(statsPageSize, statsOffsets["borough-trips"]);
+  renderBoroughTripRows(data);
+  statsLoaded["borough-trips"] = true;
+}
+
+function renderZoneRevenueRows(data) {
+  const list = document.getElementById("zone-revenue-list");
+  const page = document.getElementById("zone-revenue-page");
+
+  list.innerHTML = "";
+
+  data.items.forEach(function (zone, index) {
+    const row = document.createElement("div");
+    row.className = "stats-row";
+    row.innerHTML =
+      "<span>" + (data.offset + index + 1) + "</span>" +
+      "<span>" + escapeHtml(zone.zone_name || "--") + "</span>" +
+      "<span>" + escapeHtml(zone.borough || "--") + "</span>" +
+      "<span>" + formatNumber(zone.trip_count) + "</span>" +
+      "<span>" + formatMoney(zone.total_revenue) + "</span>";
+    list.appendChild(row);
+  });
+
+  page.textContent = getPageText(data);
+}
+
+function renderBoroughTripRows(data) {
+  const list = document.getElementById("borough-trips-list");
+  const page = document.getElementById("borough-trips-page");
+
+  list.innerHTML = "";
+
+  data.items.forEach(function (borough, index) {
+    const row = document.createElement("div");
+    row.className = "stats-row";
+    row.innerHTML =
+      "<span>" + (data.offset + index + 1) + "</span>" +
+      "<span>" + escapeHtml(borough.borough || "--") + "</span>" +
+      "<span>" + formatNumber(borough.total_trips) + "</span>" +
+      "<span>" + formatMoney(borough.total_revenue) + "</span>" +
+      "<span>" + formatMoney(borough.avg_fare) + "</span>";
+    list.appendChild(row);
+  });
+
+  page.textContent = getPageText(data);
+}
+
+function getPageText(data) {
+  const pageNumber = Math.floor(data.offset / data.limit) + 1;
+  const pageCount = Math.max(1, Math.ceil(data.count / data.limit));
+
+  return "Page " + pageNumber + " of " + pageCount;
 }
 
 function getMetricsForBorough(borough) {

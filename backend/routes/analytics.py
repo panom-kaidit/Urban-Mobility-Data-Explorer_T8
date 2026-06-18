@@ -28,24 +28,29 @@ def get_dashboard_summary(
     summary = db.execute(
         """
         SELECT
-            COUNT(*) AS total_trips,
-            ROUND(SUM(total_amount), 2) AS total_revenue,
-            ROUND(AVG(total_amount), 2) AS avg_fare,
-            ROUND(AVG(trip_distance), 2) AS avg_distance,
-            SUM(CASE WHEN is_outlier = 1 THEN 1 ELSE 0 END) AS outlier_trips
-        FROM trips
+            COALESCE(SUM(trip_count), 0) AS total_trips,
+            ROUND(COALESCE(SUM(total_revenue), 0), 2) AS total_revenue,
+            ROUND(COALESCE(SUM(total_revenue) / NULLIF(SUM(trip_count), 0), 0), 2) AS avg_fare,
+            ROUND(
+                COALESCE(SUM(avg_distance * trip_count) / NULLIF(SUM(trip_count), 0), 0),
+                2
+            ) AS avg_distance,
+            COUNT(*) AS active_zones
+        FROM zone_metrics
         """
     ).fetchone()
 
     top_borough = db.execute(
         """
         SELECT
-            pickup_borough AS borough,
-            COUNT(*) AS trip_count
-        FROM trips
-        WHERE pickup_borough IS NOT NULL
-          AND pickup_borough != 'Unknown'
-        GROUP BY pickup_borough
+            locations.borough,
+            SUM(zone_metrics.trip_count) AS trip_count
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        WHERE locations.borough IS NOT NULL
+          AND locations.borough != 'Unknown'
+        GROUP BY locations.borough
         ORDER BY trip_count DESC
         LIMIT 1
         """
@@ -56,8 +61,90 @@ def get_dashboard_summary(
         "total_revenue": summary["total_revenue"],
         "avg_fare": summary["avg_fare"],
         "avg_distance": summary["avg_distance"],
-        "outlier_trips": summary["outlier_trips"],
+        "active_zones": summary["active_zones"],
         "top_borough": dict(top_borough) if top_borough else None,
+    }
+
+
+@router.get("/dashboard-metrics")
+def get_dashboard_metrics(
+    top_n: int = Query(default=8, ge=3, le=25),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return the dashboard's cached metric bundle."""
+    summary = get_dashboard_summary(db)
+
+    borough_rows = db.execute(
+        """
+        SELECT
+            locations.borough,
+            SUM(zone_metrics.trip_count) AS total_trips,
+            ROUND(SUM(zone_metrics.total_revenue), 2) AS total_revenue,
+            ROUND(
+                SUM(zone_metrics.total_revenue) / NULLIF(SUM(zone_metrics.trip_count), 0),
+                2
+            ) AS avg_fare
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        WHERE locations.borough IS NOT NULL
+          AND locations.borough != 'Unknown'
+        GROUP BY locations.borough
+        ORDER BY total_trips DESC
+        """
+    ).fetchall()
+
+    service_rows = db.execute(
+        """
+        SELECT
+            COALESCE(locations.service_zone, 'Unknown') AS service_zone,
+            SUM(zone_metrics.trip_count) AS total_trips,
+            ROUND(SUM(zone_metrics.total_revenue), 2) AS total_revenue
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        GROUP BY COALESCE(locations.service_zone, 'Unknown')
+        ORDER BY total_trips DESC
+        """
+    ).fetchall()
+
+    top_zone_rows = db.execute(
+        """
+        SELECT
+            zone_metrics.location_id AS zone_id,
+            locations.zone AS zone_name,
+            locations.borough,
+            zone_metrics.trip_count,
+            zone_metrics.total_revenue,
+            zone_metrics.avg_fare,
+            zone_metrics.avg_distance
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        ORDER BY zone_metrics.trip_count DESC
+        LIMIT ?
+        """,
+        (top_n,),
+    ).fetchall()
+
+    fare_rows = db.execute(
+        """
+        SELECT
+            fare_range AS range,
+            trip_count,
+            avg_fare,
+            total_revenue
+        FROM fare_distribution_metrics
+        ORDER BY sort_order
+        """
+    ).fetchall()
+
+    return {
+        "summary": summary,
+        "boroughs": [dict(row) for row in borough_rows],
+        "service_zones": [dict(row) for row in service_rows],
+        "top_zones": [dict(row) for row in top_zone_rows],
+        "fare_distribution": [dict(row) for row in fare_rows],
     }
 
 
@@ -66,15 +153,147 @@ def get_top_pickup_zones(
     top_n: int = Query(default=10, ge=1, le=265, description="Number of top zones to return"),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """ Return the top N pickup zones by trip count.
-    Uses the custom Merge Sort algorithm (backend/algorithms/merge_sort.py).
-    """
+    """Return the top N pickup zones by trip count."""
+    cached_rows = db.execute(
+        """
+        SELECT
+            zone_metrics.location_id AS zone_id,
+            locations.zone AS zone_name,
+            locations.borough,
+            zone_metrics.trip_count
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        ORDER BY zone_metrics.trip_count DESC
+        LIMIT ?
+        """,
+        (top_n,),
+    ).fetchall()
+
+    if cached_rows:
+        return {
+            "algorithm": "zone_metrics_cache",
+            "top_n": top_n,
+            "zones": [dict(row) for row in cached_rows],
+        }
+
     zones = find_top_pickup_zones_from_database(db, top_n)
 
     return {
         "algorithm": "merge_sort",
         "top_n": top_n,
         "zones": zones,
+    }
+
+
+@router.get("/zone-revenue-ranking")
+def get_zone_revenue_ranking(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return pickup zones ranked by total revenue."""
+    total_count = db.execute(
+        """
+        SELECT COUNT(*)
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        """
+    ).fetchone()[0]
+
+    rows = db.execute(
+        """
+        SELECT
+            zone_metrics.location_id AS zone_id,
+            locations.zone AS zone_name,
+            locations.borough,
+            zone_metrics.trip_count,
+            ROUND(zone_metrics.total_revenue, 2) AS total_revenue,
+            zone_metrics.avg_fare,
+            zone_metrics.avg_distance
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        ORDER BY zone_metrics.total_revenue DESC
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
+    ).fetchall()
+
+    return {
+        "items": [dict(row) for row in rows],
+        "limit": limit,
+        "offset": offset,
+        "count": total_count,
+    }
+
+
+@router.get("/hourly-trip-counts")
+def get_hourly_trip_counts(
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return trip counts grouped by pickup hour."""
+    rows = db.execute(
+        """
+        SELECT
+            pickup_hour,
+            COUNT(*) AS trip_count
+        FROM trips
+        WHERE pickup_hour IS NOT NULL
+        GROUP BY pickup_hour
+        ORDER BY pickup_hour
+        """
+    ).fetchall()
+
+    trips_by_hour = {
+        int(row["pickup_hour"]): row["trip_count"]
+        for row in rows
+    }
+
+    return {
+        "hours": [
+            {
+                "pickup_hour": hour,
+                "trip_count": trips_by_hour.get(hour, 0),
+            }
+            for hour in range(24)
+        ],
+    }
+
+
+@router.get("/borough-trip-ranking")
+def get_borough_trip_ranking(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return boroughs ranked by pickup trip count."""
+    all_rows = db.execute(
+        """
+        SELECT
+            locations.borough,
+            SUM(zone_metrics.trip_count) AS total_trips,
+            ROUND(SUM(zone_metrics.total_revenue), 2) AS total_revenue,
+            ROUND(
+                SUM(zone_metrics.total_revenue) / NULLIF(SUM(zone_metrics.trip_count), 0),
+                2
+            ) AS avg_fare
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        WHERE locations.borough IS NOT NULL
+          AND locations.borough != 'Unknown'
+        GROUP BY locations.borough
+        ORDER BY total_trips DESC
+        """
+    ).fetchall()
+
+    return {
+        "items": [dict(row) for row in all_rows[offset:offset + limit]],
+        "limit": limit,
+        "offset": offset,
+        "count": len(all_rows),
     }
 
 

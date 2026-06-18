@@ -1,4 +1,4 @@
-const API_BASE_URL = window.DASHBOARD_API_BASE_URL || "http://localhost:8001/api";
+const API_BASE_URL = window.DASHBOARD_API_BASE_URL || "http://127.0.0.1:8000/api";
 
 async function apiGet(endpoint) {
   const response = await fetch(API_BASE_URL + endpoint);
@@ -22,4 +22,16 @@ async function getDashboardData() {
     metrics: results[0],
     zoneGeoJson: results[1],
   };
+}
+
+function getZoneRevenueRanking(limit, offset) {
+  return apiGet("/analytics/zone-revenue-ranking?limit=" + limit + "&offset=" + offset);
+}
+
+function getHourlyTripCounts() {
+  return apiGet("/analytics/hourly-trip-counts");
+}
+
+function getBoroughTripRanking(limit, offset) {
+  return apiGet("/analytics/borough-trip-ranking?limit=" + limit + "&offset=" + offset);
 }

@@ -1,5 +1,6 @@
 let fareChart;
 let serviceChart;
+let hourlyTripsChart;
 
 const chartColors = ["#574964", "#9F8383", "#C8AAAA", "#B8744F", "#6B8F71", "#445E78"];
 
@@ -105,6 +106,35 @@ function renderTopZones(rows) {
       "<span>" + formatShortNumber(zone.trip_count) + "</span>" +
       "<span>" + formatMoney(zone.total_revenue) + "</span>";
     list.appendChild(item);
+  });
+}
+
+function renderHourlyTripsChart(rows) {
+  if (hourlyTripsChart) {
+    hourlyTripsChart.destroy();
+  }
+
+  hourlyTripsChart = new Chart(document.getElementById("hourly-trips-chart"), {
+    type: "line",
+    data: {
+      labels: rows.map(function (row) {
+        return String(row.pickup_hour).padStart(2, "0") + ":00";
+      }),
+      datasets: [
+        {
+          label: "Trips",
+          data: rows.map(function (row) {
+            return row.trip_count;
+          }),
+          borderColor: "#574964",
+          backgroundColor: "rgba(87, 73, 100, 0.14)",
+          fill: true,
+          tension: 0.28,
+          pointRadius: 3,
+        },
+      ],
+    },
+    options: singleAxisOptions(),
   });
 }
 
