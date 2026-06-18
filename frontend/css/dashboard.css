@@ -256,6 +256,10 @@ select {
   grid-column: span 1;
 }
 
+.table-panel {
+  grid-column: 1 / -1;
+}
+
 .chart-panel {
   min-height: 330px;
 }
@@ -492,17 +496,18 @@ select {
   background: #777;
 }
 
-.zone-table {
+.zone-table,
+#top-zone-list {
   display: grid;
   gap: 8px;
 }
 
 .zone-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 110px 80px 90px;
-  gap: 12px;
+  grid-template-columns: minmax(220px, 1.7fr) minmax(110px, 0.75fr) minmax(90px, 0.45fr) minmax(110px, 0.55fr);
+  gap: 16px;
   align-items: center;
-  padding: 11px 12px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fbf4ea;
@@ -520,7 +525,12 @@ select {
   border: 0;
   color: var(--muted);
   font-size: 13px;
-  padding-top: 0;
+  padding: 0 14px 2px;
+}
+
+.zone-row span:nth-child(3),
+.zone-row span:nth-child(4) {
+  text-align: right;
 }
 
 @media (max-width: 1180px) {
@@ -573,6 +583,15 @@ select {
 
   .zone-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .zone-row.header {
+    display: none;
+  }
+
+  .zone-row span:nth-child(3),
+  .zone-row span:nth-child(4) {
+    text-align: left;
   }
 
   .donut-layout {
