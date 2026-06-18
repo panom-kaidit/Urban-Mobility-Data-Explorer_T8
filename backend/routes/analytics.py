@@ -11,6 +11,19 @@ from backend.algorithms.top_zones import find_top_pickup_zones_from_database
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 
+def display_borough(value):
+    """Return a UI-friendly borough label without changing stored lookup data."""
+    if value == "N/A":
+        return "Unknown / N/A"
+    return value
+
+
+def zone_row_to_dict(row):
+    item = dict(row)
+    item["borough"] = display_borough(item.get("borough"))
+    return item
+
+
 def get_db():
     """Open one SQLite connection for a request, then close it."""
     connection = get_connection()
@@ -50,6 +63,7 @@ def get_dashboard_summary(
             ON locations.location_id = zone_metrics.location_id
         WHERE locations.borough IS NOT NULL
           AND locations.borough != 'Unknown'
+          AND locations.borough != 'N/A'
         GROUP BY locations.borough
         ORDER BY trip_count DESC
         LIMIT 1
@@ -89,6 +103,7 @@ def get_dashboard_metrics(
             ON locations.location_id = zone_metrics.location_id
         WHERE locations.borough IS NOT NULL
           AND locations.borough != 'Unknown'
+          AND locations.borough != 'N/A'
         GROUP BY locations.borough
         ORDER BY total_trips DESC
         """
@@ -143,7 +158,7 @@ def get_dashboard_metrics(
         "summary": summary,
         "boroughs": [dict(row) for row in borough_rows],
         "service_zones": [dict(row) for row in service_rows],
-        "top_zones": [dict(row) for row in top_zone_rows],
+        "top_zones": [zone_row_to_dict(row) for row in top_zone_rows],
         "fare_distribution": [dict(row) for row in fare_rows],
     }
 
@@ -174,10 +189,12 @@ def get_top_pickup_zones(
         return {
             "algorithm": "zone_metrics_cache",
             "top_n": top_n,
-            "zones": [dict(row) for row in cached_rows],
+            "zones": [zone_row_to_dict(row) for row in cached_rows],
         }
 
     zones = find_top_pickup_zones_from_database(db, top_n)
+    for zone in zones:
+        zone["borough"] = display_borough(zone.get("borough"))
 
     return {
         "algorithm": "merge_sort",
@@ -222,10 +239,46 @@ def get_zone_revenue_ranking(
     ).fetchall()
 
     return {
-        "items": [dict(row) for row in rows],
+        "items": [zone_row_to_dict(row) for row in rows],
         "limit": limit,
         "offset": offset,
         "count": total_count,
+    }
+
+
+@router.get("/borough-revenue-ranking")
+def get_borough_revenue_ranking(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Return boroughs ranked by total revenue."""
+    all_rows = db.execute(
+        """
+        SELECT
+            locations.borough,
+            ROUND(SUM(zone_metrics.total_revenue), 2) AS total_revenue,
+            ROUND(
+                SUM(zone_metrics.total_revenue) / NULLIF(SUM(zone_metrics.trip_count), 0),
+                2
+            ) AS avg_fare,
+            COUNT(*) AS zone_count
+        FROM zone_metrics
+        JOIN locations
+            ON locations.location_id = zone_metrics.location_id
+        WHERE locations.borough IS NOT NULL
+          AND locations.borough != 'Unknown'
+          AND locations.borough != 'N/A'
+        GROUP BY locations.borough
+        ORDER BY total_revenue DESC
+        """
+    ).fetchall()
+
+    return {
+        "items": [dict(row) for row in all_rows[offset:offset + limit]],
+        "limit": limit,
+        "offset": offset,
+        "count": len(all_rows),
     }
 
 
@@ -284,6 +337,7 @@ def get_borough_trip_ranking(
             ON locations.location_id = zone_metrics.location_id
         WHERE locations.borough IS NOT NULL
           AND locations.borough != 'Unknown'
+          AND locations.borough != 'N/A'
         GROUP BY locations.borough
         ORDER BY total_trips DESC
         """
@@ -363,6 +417,7 @@ def get_revenue_by_borough(
         FROM trips
         WHERE pickup_borough IS NOT NULL
           AND pickup_borough != 'Unknown'
+          AND pickup_borough != 'N/A'
         GROUP BY pickup_borough
         ORDER BY total_revenue DESC
         """
@@ -418,6 +473,7 @@ def get_average_fare(
         FROM trips
         WHERE pickup_borough IS NOT NULL
           AND pickup_borough != 'Unknown'
+          AND pickup_borough != 'N/A'
           AND fare_amount > 0
         GROUP BY pickup_borough, payment_type
         ORDER BY pickup_borough, total_trips DESC

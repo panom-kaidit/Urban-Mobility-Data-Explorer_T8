@@ -221,7 +221,7 @@ def main():
             load_trips_data=not args.dimensions_only,
         )
     except (FileNotFoundError, RuntimeError) as error:
-        raise SystemExit(f"Load failed: {error}") from None
+        raise SystemExit(f"Load failed") from None
 
 
 if __name__ == "__main__":

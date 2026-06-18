@@ -9,6 +9,13 @@ from backend.config.database import get_connection
 router = APIRouter(prefix="/api/zones", tags=["Zones"])
 
 
+def display_borough(value):
+    """Return a UI-friendly borough label without changing stored lookup data."""
+    if value == "N/A":
+        return "Unknown / N/A"
+    return value
+
+
 def get_db():
     """Open one SQLite connection for a request, then close it."""
     connection = get_connection()
@@ -52,7 +59,7 @@ def get_zone_map_summary(
             "geometry": json.loads(row["geometry"]),
             "properties": {
                 "location_id": row["location_id"],
-                "borough": row["borough"],
+                "borough": display_borough(row["borough"]),
                 "zone": row["zone"],
                 "service_zone": row["service_zone"],
                 "trip_count": row["trip_count"],
@@ -98,4 +105,6 @@ def get_zone(
     if row is None:
         raise HTTPException(status_code=404, detail="Zone not found")
 
-    return dict(row)
+    zone = dict(row)
+    zone["borough"] = display_borough(zone["borough"])
+    return zone

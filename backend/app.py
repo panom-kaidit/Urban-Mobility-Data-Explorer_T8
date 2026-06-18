@@ -28,6 +28,3 @@ def root():
     }
 
 init_db()
-
-
-# TODO: to run the backend, use the command: uvicorn backend.app:app --reload or python -m uvicorn backend.app:app --reload from the root of the project.
