@@ -579,7 +579,10 @@ select {
 
 .stat-toolbar {
   display: flex;
+  align-items: end;
   justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stat-toolbar label {

@@ -48,7 +48,6 @@
         </div>
         <div class="topbar-actions">
           <span class="load-status" id="load-status">Loading data</span>
-          <button class="primary-button" id="export-view" type="button">Export View</button>
         </div>
       </header>
 
@@ -165,6 +164,7 @@
                 <h2>Top pickup zones</h2>
                 <p>Highest demand zones by pickup count.</p>
               </div>
+              <button class="primary-button" type="button" data-export-table="top-zones">Export</button>
             </div>
 
             <div class="zone-table">
@@ -205,6 +205,7 @@
                   <option value="boroughs">Boroughs</option>
                 </select>
               </label>
+              <button class="primary-button" type="button" data-export-table="revenue-ranking">Export</button>
             </div>
             <div class="stats-table">
               <div class="stats-row revenue-row header">
@@ -229,6 +230,9 @@
           </section>
 
           <section id="borough-trips-tab" class="stat-tab-panel hidden">
+            <div class="stat-toolbar">
+              <button class="primary-button" type="button" data-export-table="borough-trips">Export</button>
+            </div>
             <div class="stats-table">
               <div class="stats-row header">
                 <span>Rank</span>

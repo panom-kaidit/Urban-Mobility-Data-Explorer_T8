@@ -2,6 +2,8 @@ let dashboardMetrics;
 let dashboardZones;
 let activeStatsTab = "revenue-ranking";
 let revenueRankType = "zones";
+let currentRevenueRankingRows = [];
+let currentBoroughTripRows = [];
 
 const statsPageSize = 10;
 const statsOffsets = {
@@ -75,7 +77,7 @@ function bindControls() {
   const boroughFilter = document.getElementById("borough-filter");
   const mapMetricFilter = document.getElementById("map-metric-filter");
   const resetButton = document.getElementById("reset-view");
-  const exportButton = document.getElementById("export-view");
+  const exportButtons = document.querySelectorAll("[data-export-table]");
   const metricButtons = document.querySelectorAll("[data-map-metric]");
   const viewLinks = document.querySelectorAll("[data-view-link]");
   const statTabs = document.querySelectorAll("[data-stat-tab]");
@@ -121,11 +123,11 @@ function bindControls() {
     });
   }
 
-  if (exportButton) {
-    exportButton.addEventListener("click", function () {
-      exportTopZones();
+  exportButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      exportTable(button.dataset.exportTable);
     });
-  }
+  });
 
   viewLinks.forEach(function (link) {
     link.addEventListener("click", function (event) {
@@ -310,6 +312,7 @@ function renderRevenueRankingRows(data) {
   const label = document.getElementById("revenue-rank-label");
   const contextLabel = document.getElementById("revenue-rank-context-label");
 
+  currentRevenueRankingRows = data.items;
   list.innerHTML = "";
   label.textContent = revenueRankType === "boroughs" ? "Borough" : "Zone";
   contextLabel.textContent = revenueRankType === "boroughs" ? "Zones" : "Borough";
@@ -344,6 +347,7 @@ function renderRevenueRankingRows(data) {
 function renderBoroughTripRows(data) {
   const list = document.getElementById("borough-trips-list");
 
+  currentBoroughTripRows = data.items;
   list.innerHTML = "";
 
   data.items.forEach(function (borough, index) {
@@ -476,6 +480,20 @@ function selectFirstZone(zoneGeoJson) {
   showZoneInfo(zoneGeoJson.features[0].properties);
 }
 
+function exportTable(tableName) {
+  if (tableName === "top-zones") {
+    exportTopZones();
+  }
+
+  if (tableName === "revenue-ranking") {
+    exportRevenueRanking();
+  }
+
+  if (tableName === "borough-trips") {
+    exportBoroughTrips();
+  }
+}
+
 function exportTopZones() {
   const boroughFilter = document.getElementById("borough-filter");
   const borough = boroughFilter ? boroughFilter.value : "all";
@@ -490,7 +508,52 @@ function exportTopZones() {
     ].join(",");
   });
 
-  const csv = [header].concat(lines).join("\n");
+  downloadCsv("top-pickup-zones.csv", [header].concat(lines).join("\n"));
+}
+
+function exportRevenueRanking() {
+  const header = revenueRankType === "boroughs"
+    ? "rank,borough,zones,revenue"
+    : "rank,zone,borough,revenue";
+  const lines = currentRevenueRankingRows.map(function (row, index) {
+    const rank = statsOffsets["revenue-ranking"] + index + 1;
+
+    if (revenueRankType === "boroughs") {
+      return [
+        rank,
+        csvValue(row.borough),
+        row.zone_count,
+        row.total_revenue,
+      ].join(",");
+    }
+
+    return [
+      rank,
+      csvValue(row.zone_name),
+      csvValue(row.borough),
+      row.total_revenue,
+    ].join(",");
+  });
+
+  downloadCsv("revenue-ranking.csv", [header].concat(lines).join("\n"));
+}
+
+function exportBoroughTrips() {
+  const header = "rank,borough,trips,revenue,avg_fare";
+  const lines = currentBoroughTripRows.map(function (row, index) {
+    return [
+      index + 1,
+      csvValue(row.borough),
+      row.total_trips,
+      row.total_revenue,
+      row.avg_fare,
+    ].join(",");
+  });
+
+  downloadCsv("borough-trip-ranking.csv", [header].concat(lines).join("\n"));
+}
+
+function downloadCsv(fileName, csv) {
   const blob = new Blob([csv], {
     type: "text/csv;charset=utf-8",
   });
@@ -498,7 +561,7 @@ function exportTopZones() {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = "top-pickup-zones.csv";
+  link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
 }
