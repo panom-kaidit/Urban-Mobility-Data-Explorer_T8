@@ -2,18 +2,19 @@ let nycMap;
 let taxiZoneLayer;
 let taxiZoneData;
 let selectedMetric = "trip_count";
+let selectedBorough = "all";
 
-const mapMetricText = {
-  trip_count: "pickups",
-  total_revenue: "revenue",
-  avg_fare: "average fare",
-  avg_distance: "average distance",
+const mapMetricLabels = {
+  trip_count: "Pickup volume",
+  total_revenue: "Total revenue",
+  avg_fare: "Average fare",
+  avg_distance: "Average distance",
 };
 
 function renderMap(zoneGeoJson) {
   taxiZoneData = zoneGeoJson;
 
-  nycMap = L.map("nycMap", {
+  nycMap = L.map("nyc-map", {
     zoomControl: true,
     scrollWheelZoom: true,
   }).setView([40.72, -73.94], 10);
@@ -23,12 +24,27 @@ function renderMap(zoneGeoJson) {
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(nycMap);
 
-  taxiZoneLayer = L.geoJSON(taxiZoneData, {
+  drawZoneLayer();
+}
+
+function drawZoneLayer() {
+  const visibleData = getVisibleZoneData();
+
+  if (taxiZoneLayer) {
+    taxiZoneLayer.remove();
+  }
+
+  taxiZoneLayer = L.geoJSON(visibleData, {
     style: getZoneStyle,
     onEachFeature: function (feature, layer) {
+      layer.bindPopup(getPopupHtml(feature.properties));
+
       layer.on({
         mouseover: function () {
-          layer.setStyle({ color: "#222222", weight: 2 });
+          layer.setStyle({
+            color: "#251f2a",
+            weight: 2,
+          });
         },
         mouseout: function () {
           taxiZoneLayer.resetStyle(layer);
@@ -40,15 +56,46 @@ function renderMap(zoneGeoJson) {
     },
   }).addTo(nycMap);
 
-  nycMap.fitBounds(taxiZoneLayer.getBounds(), { padding: [18, 18] });
+  if (taxiZoneLayer.getBounds().isValid()) {
+    nycMap.fitBounds(taxiZoneLayer.getBounds(), {
+      padding: [18, 18],
+    });
+  }
 }
 
-function changeMapMetric(metricName) {
+function setMapMetric(metricName) {
   selectedMetric = metricName;
 
   if (taxiZoneLayer) {
-    taxiZoneLayer.setStyle(getZoneStyle);
+    taxiZoneLayer.eachLayer(function (layer) {
+      layer.setStyle(getZoneStyle(layer.feature));
+      layer.setPopupContent(getPopupHtml(layer.feature.properties));
+    });
   }
+}
+
+function setMapBorough(borough) {
+  selectedBorough = borough;
+  drawZoneLayer();
+}
+
+function resetMapView() {
+  selectedBorough = "all";
+  selectedMetric = "trip_count";
+  drawZoneLayer();
+}
+
+function getVisibleZoneData() {
+  if (!taxiZoneData || selectedBorough === "all") {
+    return taxiZoneData;
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: taxiZoneData.features.filter(function (feature) {
+      return feature.properties.borough === selectedBorough;
+    }),
+  };
 }
 
 function getZoneStyle(feature) {
@@ -56,18 +103,20 @@ function getZoneStyle(feature) {
   const maxValue = getMaxZoneValue(selectedMetric);
 
   return {
-    color: "#F5E7C6",
+    color: "#fff8ed",
     weight: 1,
     fillColor: getMapColor(value / maxValue),
-    fillOpacity: 0.8,
+    fillOpacity: 0.82,
   };
 }
 
 function getMaxZoneValue(metricName) {
+  const visibleData = getVisibleZoneData();
   let maxValue = 0;
 
-  taxiZoneData.features.forEach(function (feature) {
+  visibleData.features.forEach(function (feature) {
     const value = Number(feature.properties[metricName] || 0);
+
     if (value > maxValue) {
       maxValue = value;
     }
@@ -77,20 +126,28 @@ function getMaxZoneValue(metricName) {
 }
 
 function getMapColor(percent) {
-  if (percent > 0.75) return "#FA8112";
-  if (percent > 0.5) return "#f49a3b";
-  if (percent > 0.25) return "#efbc76";
-  if (percent > 0.08) return "#F5E7C6";
-  return "#FAF3E1";
+  if (percent > 0.75) return "#574964";
+  if (percent > 0.5) return "#7D6374";
+  if (percent > 0.25) return "#9F8383";
+  if (percent > 0.08) return "#C8AAAA";
+  return "#F2DDD0";
+}
+
+function getPopupHtml(zone) {
+  return (
+    '<div class="zone-popup">' +
+    "<strong>" + escapeHtml(zone.zone || "--") + "</strong>" +
+    "<span>" + escapeHtml(zone.borough || "--") + "</span>" +
+    "<span>" + escapeHtml(mapMetricLabels[selectedMetric]) + ": " +
+    formatMetric(zone[selectedMetric], selectedMetric) + "</span>" +
+    "</div>"
+  );
 }
 
 function showZoneInfo(zone) {
-  document.getElementById("zoneName").textContent = zone.zone || "--";
-  document.getElementById("zoneBorough").textContent = zone.borough || "--";
-  document.getElementById("zoneTrips").textContent = formatNumber(zone.trip_count);
-  document.getElementById("zoneRevenue").textContent = formatMoney(zone.total_revenue);
-  document.getElementById("zoneDistance").textContent = formatDecimal(zone.avg_distance, 2) + " mi";
-  document.getElementById("zoneSummary").textContent =
-    zone.zone + " shows " + formatMetric(zone[selectedMetric], selectedMetric) +
-    " by " + mapMetricText[selectedMetric] + ".";
+  document.getElementById("selected-zone").textContent = zone.zone || "--";
+  document.getElementById("selected-borough").textContent = zone.borough || "--";
+  document.getElementById("selected-trips").textContent = formatNumber(zone.trip_count);
+  document.getElementById("selected-revenue").textContent = formatMoney(zone.total_revenue);
+  document.getElementById("selected-distance").textContent = formatDecimal(zone.avg_distance, 2) + " mi";
 }
