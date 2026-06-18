@@ -28,10 +28,14 @@ function getZoneRevenueRanking(limit, offset) {
   return apiGet("/analytics/zone-revenue-ranking?limit=" + limit + "&offset=" + offset);
 }
 
+function getBoroughRevenueRanking(limit, offset) {
+  return apiGet("/analytics/borough-revenue-ranking?limit=" + limit + "&offset=" + offset);
+}
+
 function getHourlyTripCounts() {
   return apiGet("/analytics/hourly-trip-counts");
 }
 
-function getBoroughTripRanking(limit, offset) {
-  return apiGet("/analytics/borough-trip-ranking?limit=" + limit + "&offset=" + offset);
+function getBoroughTripRanking() {
+  return apiGet("/analytics/borough-trip-ranking?limit=100&offset=0");
 }

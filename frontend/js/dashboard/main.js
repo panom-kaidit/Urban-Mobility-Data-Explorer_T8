@@ -1,15 +1,15 @@
 let dashboardMetrics;
 let dashboardZones;
-let activeStatsTab = "zone-revenue";
+let activeStatsTab = "revenue-ranking";
+let revenueRankType = "zones";
 
 const statsPageSize = 10;
 const statsOffsets = {
-  "zone-revenue": 0,
-  "borough-trips": 0,
+  "revenue-ranking": 0,
 };
 
 const statsLoaded = {
-  "zone-revenue": false,
+  "revenue-ranking": false,
   "hourly-trips": false,
   "borough-trips": false,
 };
@@ -80,6 +80,7 @@ function bindControls() {
   const viewLinks = document.querySelectorAll("[data-view-link]");
   const statTabs = document.querySelectorAll("[data-stat-tab]");
   const statPageButtons = document.querySelectorAll("[data-stat-page]");
+  const revenueRankTypeSelect = document.getElementById("revenue-rank-type");
 
   if (boroughFilter) {
     boroughFilter.addEventListener("change", function (event) {
@@ -144,6 +145,14 @@ function bindControls() {
       changeStatsPage(button.dataset.statPage, Number(button.dataset.pageStep));
     });
   });
+
+  if (revenueRankTypeSelect) {
+    revenueRankTypeSelect.addEventListener("change", function (event) {
+      revenueRankType = event.target.value;
+      statsOffsets["revenue-ranking"] = 0;
+      loadRevenueRanking();
+    });
+  }
 }
 
 function updateMapMetric(metricName) {
@@ -215,15 +224,15 @@ function showStatsTab(tabName) {
 }
 
 function loadStatsTab(tabName) {
-  if (tabName === "zone-revenue") {
-    loadZoneRevenueRanking();
+  if (tabName === "revenue-ranking") {
+    loadRevenueRanking();
   }
 
   if (tabName === "hourly-trips" && !statsLoaded["hourly-trips"]) {
     loadHourlyTripCounts();
   }
 
-  if (tabName === "borough-trips") {
+  if (tabName === "borough-trips" && !statsLoaded["borough-trips"]) {
     loadBoroughTripRanking();
   }
 }
@@ -237,19 +246,19 @@ function changeStatsPage(tabName, step) {
 
   statsOffsets[tabName] = nextOffset;
 
-  if (tabName === "zone-revenue") {
-    loadZoneRevenueRanking();
-  }
-
-  if (tabName === "borough-trips") {
-    loadBoroughTripRanking();
+  if (tabName === "revenue-ranking") {
+    loadRevenueRanking();
   }
 }
 
-async function loadZoneRevenueRanking() {
-  const data = await getZoneRevenueRanking(statsPageSize, statsOffsets["zone-revenue"]);
-  renderZoneRevenueRows(data);
-  statsLoaded["zone-revenue"] = true;
+async function loadRevenueRanking() {
+  const offset = statsOffsets["revenue-ranking"];
+  const data = revenueRankType === "boroughs"
+    ? await getBoroughRevenueRanking(statsPageSize, offset)
+    : await getZoneRevenueRanking(statsPageSize, offset);
+
+  renderRevenueRankingRows(data);
+  statsLoaded["revenue-ranking"] = true;
 }
 
 async function loadHourlyTripCounts() {
@@ -259,35 +268,51 @@ async function loadHourlyTripCounts() {
 }
 
 async function loadBoroughTripRanking() {
-  const data = await getBoroughTripRanking(statsPageSize, statsOffsets["borough-trips"]);
+  const data = await getBoroughTripRanking();
   renderBoroughTripRows(data);
   statsLoaded["borough-trips"] = true;
 }
 
-function renderZoneRevenueRows(data) {
-  const list = document.getElementById("zone-revenue-list");
-  const page = document.getElementById("zone-revenue-page");
+function renderRevenueRankingRows(data) {
+  const list = document.getElementById("revenue-ranking-list");
+  const page = document.getElementById("revenue-ranking-page");
+  const pager = document.getElementById("revenue-ranking-pager");
+  const label = document.getElementById("revenue-rank-label");
+  const contextLabel = document.getElementById("revenue-rank-context-label");
 
   list.innerHTML = "";
+  label.textContent = revenueRankType === "boroughs" ? "Borough" : "Zone";
+  contextLabel.textContent = revenueRankType === "boroughs" ? "Zones" : "Borough";
+  pager.classList.toggle("hidden", revenueRankType === "boroughs");
 
-  data.items.forEach(function (zone, index) {
+  data.items.forEach(function (item, index) {
     const row = document.createElement("div");
-    row.className = "stats-row";
-    row.innerHTML =
-      "<span>" + (data.offset + index + 1) + "</span>" +
-      "<span>" + escapeHtml(zone.zone_name || "--") + "</span>" +
-      "<span>" + escapeHtml(zone.borough || "--") + "</span>" +
-      "<span>" + formatNumber(zone.trip_count) + "</span>" +
-      "<span>" + formatMoney(zone.total_revenue) + "</span>";
+    row.className = "stats-row revenue-row";
+
+    if (revenueRankType === "boroughs") {
+      row.innerHTML =
+        "<span>" + (data.offset + index + 1) + "</span>" +
+        "<span>" + escapeHtml(item.borough || "--") + "</span>" +
+        "<span>" + formatNumber(item.zone_count) + "</span>" +
+        "<span>" + formatMoney(item.total_revenue) + "</span>";
+    } else {
+      row.innerHTML =
+        "<span>" + (data.offset + index + 1) + "</span>" +
+        "<span>" + escapeHtml(item.zone_name || "--") + "</span>" +
+        "<span>" + escapeHtml(item.borough || "--") + "</span>" +
+        "<span>" + formatMoney(item.total_revenue) + "</span>";
+    }
+
     list.appendChild(row);
   });
 
-  page.textContent = getPageText(data);
+  if (revenueRankType === "zones") {
+    page.textContent = getPageText(data);
+  }
 }
 
 function renderBoroughTripRows(data) {
   const list = document.getElementById("borough-trips-list");
-  const page = document.getElementById("borough-trips-page");
 
   list.innerHTML = "";
 
@@ -302,8 +327,6 @@ function renderBoroughTripRows(data) {
       "<span>" + formatMoney(borough.avg_fare) + "</span>";
     list.appendChild(row);
   });
-
-  page.textContent = getPageText(data);
 }
 
 function getPageText(data) {

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Urban Mobility Dashboard</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
@@ -19,7 +20,18 @@
       </div>
 
       <nav class="nav-list">
-        <a class="nav-link active" href="#">Overview</a>
+        <a class="nav-link active" href="#" data-view-link="overview">Overview</a>
+        <div class="nav-group">
+          <button class="nav-link nav-group-toggle" type="button" data-view-link="statistics" aria-expanded="true">
+            <span>Statistics</span>
+            <span class="nav-caret">⌃</span>
+          </button>
+          <div class="nav-sublist">
+            <a class="nav-sublink active" href="#" data-stat-tab="revenue-ranking">Ranking by revenue</a>
+            <a class="nav-sublink" href="#" data-stat-tab="hourly-trips">Hourly trips</a>
+            <a class="nav-sublink" href="#" data-stat-tab="borough-trips">Borough trips</a>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-note">
@@ -42,137 +54,193 @@
 
       
 
-      <section class="kpi-grid" aria-label="Summary metrics">
-        <article class="kpi-card">
-          <span>Total Trips</span>
-          <strong id="total-trips">--</strong>
-        </article>
-        <article class="kpi-card">
-          <span>Total Revenue</span>
-          <strong id="total-revenue">--</strong>
-          
-        </article>
-        <article class="kpi-card">
-          <span>Average Fare</span>
-          <strong id="average-fare">--</strong>
-        </article>
-        <article class="kpi-card">
-          <span>Top Pickup Borough</span>
-          <strong id="top-borough">--</strong>
-        </article>
-      </section>
+      <section id="overview-view" class="dashboard-view">
+        <section class="kpi-grid" aria-label="Summary metrics">
+          <article class="kpi-card">
+            <span>Total Trips</span>
+            <strong id="total-trips">--</strong>
+          </article>
+          <article class="kpi-card">
+            <span>Total Revenue</span>
+            <strong id="total-revenue">--</strong>
+          </article>
+          <article class="kpi-card">
+            <span>Average Fare</span>
+            <strong id="average-fare">--</strong>
+          </article>
+          <article class="kpi-card">
+            <span>Top pickup Borough</span>
+            <strong id="top-borough">--</strong>
+          </article>
+        </section>
 
-      <section class="content-grid">
-        <article class="panel map-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Geographic demand</h2>
-              <p>Map view for pickup concentration and zone-level comparison.</p>
-            </div>
-            <div class="segmented-control" aria-label="Map metric options">
-              <button class="active" type="button" data-map-metric="trip_count">Trips</button>
-              <button type="button" data-map-metric="total_revenue">Revenue</button>
-              <button type="button" data-map-metric="avg_fare">Fare</button>
-            </div>
-          </div>
-
-          <div class="map-frame">
-            <div id="nyc-map" class="nyc-map" aria-label="NYC taxi zone map"></div>
-            <div class="map-legend">
-              <span>Low</span>
-              <div class="legend-ramp"></div>
-              <span>High</span>
-            </div>
-          </div>
-        </article>
-
-        <aside class="panel detail-panel">
-          <div class="panel-header compact">
-            <div>
-              <h2>Selected zone</h2>
-              <p>Zone context appears here after map selection.</p>
-            </div>
-          </div>
-
-          <dl class="detail-list">
-            <div>
-              <dt>Zone</dt>
-              <dd id="selected-zone">--</dd>
-            </div>
-            <div>
-              <dt>Borough</dt>
-              <dd id="selected-borough">--</dd>
-            </div>
-            <div>
-              <dt>Trips</dt>
-              <dd id="selected-trips">--</dd>
-            </div>
-            <div>
-              <dt>Revenue</dt>
-              <dd id="selected-revenue">--</dd>
-            </div>
-            <div>
-              <dt>Avg distance</dt>
-              <dd id="selected-distance">--</dd>
-            </div>
-          </dl>
-        </aside>
-
-        <article class="panel chart-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Fare distribution</h2>
-              <p>Trip count across fare buckets.</p>
-            </div>
-          </div>
-          <div class="chart-box">
-            <canvas id="fare-chart"></canvas>
-          </div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Service zone mix</h2>
-              <p>Demand split by TLC service zone.</p>
-            </div>
-          </div>
-          <div class="donut-layout">
-            <div class="donut-chart-box">
-              <canvas id="service-chart"></canvas>
-            </div>
-            <ul class="metric-list" id="service-zone-list">
-              <li><span></span> --</li>
-            </ul>
-          </div>
-        </article>
-
-        <article class="panel table-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Top pickup zones</h2>
-              <p>Highest demand zones by pickup count.</p>
-            </div>
-          </div>
-
-          <div class="zone-table">
-            <div class="zone-row header">
-              <span>Zone</span>
-              <span>Borough</span>
-              <span>Trips</span>
-              <span>Revenue</span>
-            </div>
-            <div id="top-zone-list">
-              <div class="zone-row">
-                <span>--</span>
-                <span>--</span>
-                <span>--</span>
-                <span>--</span>
+        <section class="content-grid">
+          <article class="panel map-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Geographic demand</h2>
+                <p>Map view for pickup concentration and zone-level comparison.</p>
+              </div>
+              <div class="segmented-control" aria-label="Map metric options">
+                <button class="active" type="button" data-map-metric="trip_count">Trips</button>
+                <button type="button" data-map-metric="total_revenue">Revenue</button>
+                <button type="button" data-map-metric="avg_fare">Fare</button>
               </div>
             </div>
-          </div>
-        </article>
 
+            <div class="map-frame">
+              <div id="nyc-map" class="nyc-map" aria-label="NYC taxi zone map"></div>
+              <div class="map-legend">
+                <span>Low</span>
+                <div class="legend-ramp"></div>
+                <span>High</span>
+              </div>
+            </div>
+          </article>
+
+          <aside class="panel detail-panel">
+            <div class="panel-header compact">
+              <div>
+                <h2>Selected zone</h2>
+                <p>Zone context appears here after map selection.</p>
+              </div>
+            </div>
+
+            <dl class="detail-list">
+              <div>
+                <dt>Zone</dt>
+                <dd id="selected-zone">--</dd>
+              </div>
+              <div>
+                <dt>Borough</dt>
+                <dd id="selected-borough">--</dd>
+              </div>
+              <div>
+                <dt>Trips</dt>
+                <dd id="selected-trips">--</dd>
+              </div>
+              <div>
+                <dt>Revenue</dt>
+                <dd id="selected-revenue">--</dd>
+              </div>
+              <div>
+                <dt>Avg distance</dt>
+                <dd id="selected-distance">--</dd>
+              </div>
+            </dl>
+          </aside>
+
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Fare distribution</h2>
+                <p>Trip count across fare buckets.</p>
+              </div>
+            </div>
+            <div class="chart-box">
+              <canvas id="fare-chart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Service zone mix</h2>
+                <p>Demand split by TLC service zone.</p>
+              </div>
+            </div>
+            <div class="donut-layout">
+              <div class="donut-chart-box">
+                <canvas id="service-chart"></canvas>
+              </div>
+              <ul class="metric-list" id="service-zone-list">
+                <li><span></span> --</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="panel table-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Top pickup zones</h2>
+                <p>Highest demand zones by pickup count.</p>
+              </div>
+            </div>
+
+            <div class="zone-table">
+              <div class="zone-row header">
+                <span>Zone</span>
+                <span id="revenue-rank-context-label">Borough</span>
+                <span>Trips</span>
+                <span>Revenue</span>
+              </div>
+              <div id="top-zone-list">
+                <div class="zone-row">
+                  <span>--</span>
+                  <span>--</span>
+                  <span>--</span>
+                  <span>--</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section id="statistics-view" class="dashboard-view hidden">
+        <section class="panel stats-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Statistics</h2>
+              <p>Rankings and time-of-day patterns from processed trip data.</p>
+            </div>
+          </div>
+
+          <section id="revenue-ranking-tab" class="stat-tab-panel">
+            <div class="stat-toolbar">
+              <label>
+                Rank
+                <select id="revenue-rank-type">
+                  <option value="zones">Zones</option>
+                  <option value="boroughs">Boroughs</option>
+                </select>
+              </label>
+            </div>
+            <div class="stats-table">
+              <div class="stats-row revenue-row header">
+                <span>Rank</span>
+                <span id="revenue-rank-label">Zone</span>
+                <span>Borough</span>
+                <span>Revenue</span>
+              </div>
+              <div id="revenue-ranking-list"></div>
+            </div>
+            <div class="pager" id="revenue-ranking-pager">
+              <button type="button" data-stat-page="revenue-ranking" data-page-step="-1">Previous</button>
+              <span id="revenue-ranking-page">Page 1</span>
+              <button type="button" data-stat-page="revenue-ranking" data-page-step="1">Next</button>
+            </div>
+          </section>
+
+          <section id="hourly-trips-tab" class="stat-tab-panel hidden">
+            <div class="chart-box stats-chart-box">
+              <canvas id="hourly-trips-chart"></canvas>
+            </div>
+          </section>
+
+          <section id="borough-trips-tab" class="stat-tab-panel hidden">
+            <div class="stats-table">
+              <div class="stats-row header">
+                <span>Rank</span>
+                <span>Borough</span>
+                <span>Trips</span>
+                <span>Revenue</span>
+                <span>Avg fare</span>
+              </div>
+              <div id="borough-trips-list"></div>
+            </div>
+          </section>
+        </section>
       </section>
     </main>
   </div>

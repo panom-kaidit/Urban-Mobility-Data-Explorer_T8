@@ -75,16 +75,60 @@ select {
   gap: 6px;
 }
 
-.nav-link {
+.nav-link,
+.nav-group-toggle {
   color: #fff8ed;
   text-decoration: none;
   border-radius: 7px;
   padding: 11px 12px;
 }
 
+.nav-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+}
+
 .nav-link:hover,
-.nav-link.active {
+.nav-link.active,
+.nav-group-toggle:hover,
+.nav-group-toggle.active {
   background: rgba(255, 218, 179, 0.16);
+}
+
+.nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-caret {
+  color: var(--rose);
+  font-size: 13px;
+}
+
+.nav-sublist {
+  display: grid;
+  gap: 3px;
+  padding-left: 18px;
+}
+
+.nav-sublink {
+  color: var(--rose);
+  text-decoration: none;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.nav-sublink:hover,
+.nav-sublink.active {
+  background: rgba(255, 218, 179, 0.12);
+  color: #fff8ed;
 }
 
 .sidebar-note {
@@ -245,6 +289,10 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
   gap: 16px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .panel {
@@ -496,6 +544,94 @@ select {
   background: #777;
 }
 
+.stats-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.pager button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--deep);
+  cursor: pointer;
+  padding: 0 12px;
+}
+
+.stat-tab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.stat-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.stat-toolbar label {
+  width: min(220px, 100%);
+}
+
+.stats-chart-box {
+  height: 360px;
+}
+
+.stats-table,
+#revenue-ranking-list,
+#borough-trips-list {
+  display: grid;
+  gap: 8px;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 64px minmax(170px, 1.6fr) minmax(110px, 0.75fr) minmax(110px, 0.65fr) minmax(120px, 0.7fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbf4ea;
+}
+
+.stats-row.header {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 0 14px 2px;
+}
+
+.stats-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-row span:nth-child(4),
+.stats-row span:nth-child(5) {
+  text-align: right;
+}
+
+.revenue-row {
+  grid-template-columns: 64px minmax(180px, 1.5fr) minmax(120px, 0.8fr) minmax(120px, 0.7fr);
+}
+
+.revenue-row span:nth-child(4) {
+  text-align: right;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .zone-table,
 #top-zone-list {
   display: grid;
@@ -592,6 +728,24 @@ select {
   .zone-row span:nth-child(3),
   .zone-row span:nth-child(4) {
     text-align: left;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stats-row.header {
+    display: none;
+  }
+
+  .stats-row span:nth-child(4),
+  .stats-row span:nth-child(5) {
+    text-align: left;
+  }
+
+  .pager {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .donut-layout {
