@@ -101,3 +101,26 @@ CREATE TABLE IF NOT EXISTS suspicious_records (
     removal_reason                TEXT NOT NULL,
     flagged_at                     TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- zone_metrics: small dashboard cache so the map does not scan millions
+-- of trips on every page load
+CREATE TABLE IF NOT EXISTS zone_metrics (
+    location_id      INTEGER PRIMARY KEY,
+    trip_count       INTEGER NOT NULL DEFAULT 0,
+    total_revenue    REAL NOT NULL DEFAULT 0,
+    avg_fare         REAL,
+    avg_distance     REAL,
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+
+    FOREIGN KEY (location_id) REFERENCES locations (location_id)
+);
+
+-- fare_distribution_metrics: small dashboard cache for fare histogram
+CREATE TABLE IF NOT EXISTS fare_distribution_metrics (
+    fare_range     TEXT PRIMARY KEY,
+    sort_order     INTEGER NOT NULL,
+    trip_count     INTEGER NOT NULL DEFAULT 0,
+    avg_fare       REAL,
+    total_revenue  REAL NOT NULL DEFAULT 0,
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);

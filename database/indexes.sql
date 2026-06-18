@@ -22,3 +22,9 @@ CREATE INDEX IF NOT EXISTS idx_trips_fare_amount ON trips (fare_amount);
 
 -- zone boundary lookups by location
 CREATE INDEX IF NOT EXISTS idx_zone_boundaries_location_id ON zone_boundaries (location_id);
+
+-- dashboard map cache
+CREATE INDEX IF NOT EXISTS idx_zone_metrics_trip_count ON zone_metrics (trip_count);
+
+CREATE INDEX IF NOT EXISTS idx_fare_distribution_sort_order
+ON fare_distribution_metrics (sort_order);

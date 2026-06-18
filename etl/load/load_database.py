@@ -14,7 +14,14 @@ from etl.load.load_zone_boundaries import load_zone_boundaries
 from etl.utils.config import LOOKUP_FILE, SPATIAL_FILE, TRIP_DATA_FILE
 
 
-TABLE_NAMES = ["locations", "zone_boundaries", "trips", "suspicious_records"]
+TABLE_NAMES = [
+    "locations",
+    "zone_boundaries",
+    "trips",
+    "suspicious_records",
+    "zone_metrics",
+    "fare_distribution_metrics",
+]
 
 
 def get_table_counts():
@@ -51,6 +58,81 @@ def clear_tables(table_names):
         conn.close()
 
 
+def build_zone_metrics():
+    conn = get_connection()
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM zone_metrics")
+        cursor.execute(
+            """
+            INSERT INTO zone_metrics (
+                location_id,
+                trip_count,
+                total_revenue,
+                avg_fare,
+                avg_distance
+            )
+            SELECT
+                pu_location_id,
+                COUNT(*) AS trip_count,
+                ROUND(SUM(total_amount), 2) AS total_revenue,
+                ROUND(AVG(total_amount), 2) AS avg_fare,
+                ROUND(AVG(trip_distance), 2) AS avg_distance
+            FROM trips
+            GROUP BY pu_location_id
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def build_fare_distribution_metrics():
+    conn = get_connection()
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM fare_distribution_metrics")
+        cursor.execute(
+            """
+            INSERT INTO fare_distribution_metrics (
+                fare_range,
+                sort_order,
+                trip_count,
+                avg_fare,
+                total_revenue
+            )
+            SELECT
+                CASE
+                    WHEN fare_amount >= 0  AND fare_amount < 10  THEN '0-10'
+                    WHEN fare_amount >= 10 AND fare_amount < 20  THEN '10-20'
+                    WHEN fare_amount >= 20 AND fare_amount < 30  THEN '20-30'
+                    WHEN fare_amount >= 30 AND fare_amount < 40  THEN '30-40'
+                    WHEN fare_amount >= 40 AND fare_amount < 50  THEN '40-50'
+                    ELSE '50+'
+                END AS fare_range,
+                CASE
+                    WHEN fare_amount >= 0  AND fare_amount < 10  THEN 1
+                    WHEN fare_amount >= 10 AND fare_amount < 20  THEN 2
+                    WHEN fare_amount >= 20 AND fare_amount < 30  THEN 3
+                    WHEN fare_amount >= 30 AND fare_amount < 40  THEN 4
+                    WHEN fare_amount >= 40 AND fare_amount < 50  THEN 5
+                    ELSE 6
+                END AS sort_order,
+                COUNT(*) AS trip_count,
+                ROUND(AVG(fare_amount), 2) AS avg_fare,
+                ROUND(SUM(total_amount), 2) AS total_revenue
+            FROM trips
+            WHERE fare_amount > 0
+            GROUP BY fare_range, sort_order
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def check_input_files(load_dimensions, load_trips_data):
     missing_files = []
 
@@ -77,10 +159,22 @@ def load_database(reset=True, load_dimensions=True, load_trips_data=True):
 
     if reset and load_dimensions:
         print("Clearing all ETL tables...")
-        clear_tables(["suspicious_records", "trips", "zone_boundaries", "locations"])
+        clear_tables([
+            "zone_metrics",
+            "fare_distribution_metrics",
+            "suspicious_records",
+            "trips",
+            "zone_boundaries",
+            "locations",
+        ])
     elif reset and load_trips_data:
         print("Clearing trip tables...")
-        clear_tables(["suspicious_records", "trips"])
+        clear_tables([
+            "zone_metrics",
+            "fare_distribution_metrics",
+            "suspicious_records",
+            "trips",
+        ])
 
     if load_dimensions:
         print("Loading locations...")
@@ -96,6 +190,12 @@ def load_database(reset=True, load_dimensions=True, load_trips_data=True):
 
         print("Loading trips and suspicious records...")
         load_trips(clear_existing=False)
+
+        print("Building zone metrics for dashboard...")
+        build_zone_metrics()
+
+        print("Building fare distribution for dashboard...")
+        build_fare_distribution_metrics()
 
     print_table_counts()
 
