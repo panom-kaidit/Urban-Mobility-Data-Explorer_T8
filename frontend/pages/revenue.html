@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revenue — Urban Mobility Data Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../css/revenue.css">
+</head>
+<body>
+
+  <header class="rev-header">
+    <div class="rev-header-left">
+      <span class="rev-eyebrow">NYC Yellow Cab &middot; January 2019</span>
+      <h1 class="rev-title">Revenue</h1>
+    </div>
+    <div class="rev-header-right">
+      <span class="rev-ticker-label">Total Revenue</span>
+      <span class="rev-ticker-value" id="kpi-total-revenue">—</span>
+    </div>
+  </header>
+
+  <main class="rev-main">
+
+    <section class="kpi-strip" aria-label="Key revenue metrics">
+      <div class="kpi-card">
+        <span class="kpi-label">Total Trips</span>
+        <span class="kpi-value" id="kpi-total-trips">—</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Average Fare</span>
+        <span class="kpi-value" id="kpi-avg-fare">—</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Top Borough</span>
+        <span class="kpi-value" id="kpi-top-borough">—</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Boroughs Tracked</span>
+        <span class="kpi-value" id="kpi-borough-count">—</span>
+      </div>
+    </section>
+
+    <section class="chart-grid">
+
+      <article class="chart-panel">
+        <div class="chart-panel-header">
+          <h2>Revenue by Borough</h2>
+          <p class="chart-caption" id="caption-borough">Loading insight…</p>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-revenue-by-borough"></canvas>
+        </div>
+      </article>
+
+      <article class="chart-panel">
+        <div class="chart-panel-header">
+          <h2>Revenue Trend</h2>
+          <p class="chart-caption" id="caption-trend">Loading insight…</p>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-revenue-trend"></canvas>
+        </div>
+      </article>
+
+      <article class="chart-panel">
+        <div class="chart-panel-header">
+          <h2>Average Fare by Payment Method</h2>
+          <p class="chart-caption" id="caption-fare">Loading insight…</p>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-average-fare"></canvas>
+        </div>
+      </article>
+
+      <article class="chart-panel">
+        <div class="chart-panel-header">
+          <h2>Fare Distribution</h2>
+          <p class="chart-caption" id="caption-distribution">Loading insight…</p>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-fare-distribution"></canvas>
+        </div>
+      </article>
+
+    </section>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/revenue.js" defer></script>
+</body>
+</html>
