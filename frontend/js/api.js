@@ -1,145 +1,136 @@
+// Shared API client for all dashboard pages.
+// Loads after Chart.js so it can set global chart defaults for the dark theme.
 
+const API_BASE_URL = "http://localhost:8000/api";
 
-/* Backend server URL */
-const API_BASE_URL = 'http://localhost:8000';
+// ---- Chart.js dark-theme global defaults ----
+if (typeof Chart !== "undefined") {
+  Chart.defaults.color           = "#8B9BB4";
+  Chart.defaults.borderColor     = "rgba(0, 212, 255, 0.07)";
+  Chart.defaults.font.family     = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size       = 12;
+  Chart.defaults.plugins.legend.labels.color = "#8B9BB4";
+  Chart.defaults.plugins.tooltip.backgroundColor = "rgba(11, 20, 71, 0.95)";
+  Chart.defaults.plugins.tooltip.borderColor      = "rgba(0, 212, 255, 0.3)";
+  Chart.defaults.plugins.tooltip.borderWidth      = 1;
+  Chart.defaults.plugins.tooltip.titleColor       = "#E2E8F0";
+  Chart.defaults.plugins.tooltip.bodyColor        = "#8B9BB4";
+  Chart.defaults.plugins.tooltip.padding          = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius     = 8;
+}
 
-/* ================================================================
-   CORE FETCH HELPER
-================================================================ */
+// ---- Core HTTP helper ----
 
-/**
- * GET request to API. Returns JSON or null.
- *
- * @param {string} path
- * @param {Object} params
- * @returns {Promise<Object|null>}
- */
-async function apiGet(path, params = {}) {
-  /* Build URL */
-  const url = new URL(API_BASE_URL + path);
+async function fetchJSON(endpoint) {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`);
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${endpoint}`);
+  }
+  return response.json();
+}
 
-  /* Add query params */
-  Object.entries(params).forEach(function([key, value]) {
-    if (value !== null && value !== undefined && value !== '') {
-      url.searchParams.append(key, value);
-    }
-  });
+// ---- Trips ----
 
+async function fetchTrips(filters = {}) {
+  const params = [];
+  if (filters.limit)   params.push(`limit=${encodeURIComponent(filters.limit)}`);
+  if (filters.offset)  params.push(`offset=${encodeURIComponent(filters.offset)}`);
+  if (filters.borough) params.push(`borough=${encodeURIComponent(filters.borough)}`);
+  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
+  if (filters.fare)    params.push(`fare=${encodeURIComponent(filters.fare)}`);
+  if (filters.date)    params.push(`date=${encodeURIComponent(filters.date)}`);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/trips${qs}`);
+}
+
+async function fetchTripById(tripId) {
+  return fetchJSON(`/trips/${tripId}`);
+}
+
+// ---- Zones ----
+
+async function fetchZone(zoneId) {
+  return fetchJSON(`/zones/${zoneId}`);
+}
+
+// ---- Analytics — implemented endpoints ----
+
+async function fetchTopPickupZones(topN = 10) {
+  return fetchJSON(`/analytics/top-pickup-zones?top_n=${topN}`);
+}
+
+async function fetchFareDistribution() {
+  return fetchJSON("/analytics/fare-distribution");
+}
+
+async function fetchFareDistributionDetailed() {
+  return fetchJSON("/analytics/fare-distribution-detailed");
+}
+
+async function fetchRevenueByBorough() {
+  return fetchJSON("/analytics/revenue-by-borough");
+}
+
+async function fetchRevenueTrends() {
+  return fetchJSON("/analytics/revenue-trends");
+}
+
+async function fetchAverageFare() {
+  return fetchJSON("/analytics/average-fare");
+}
+
+async function fetchSuspiciousRecords(limit = 100, offset = 0) {
+  return fetchJSON(`/suspicious-records?limit=${limit}&offset=${offset}`);
+}
+
+// ---- Analytics — additional endpoints ----
+
+async function fetchTopDropoffZones(topN = 10) {
   try {
-    const response = await fetch(url.toString());
-
-    if (!response.ok) {
-      const body = await response.json().catch(function() { return {}; });
-      throw new Error(body.detail || 'HTTP ' + response.status);
-    }
-
-    return await response.json();
-
-  } catch (error) {
-    console.error('[API] Error fetching ' + path + ':', error.message);
+    return await fetchJSON(`/analytics/top-dropoff-zones?top_n=${topN}`);
+  } catch (_) {
     return null;
   }
 }
 
-/* TRIPS ENDPOINTS */
-
-/**
- * Fetch trips with optional filters.
- *
- * @param {Object} filters
- * @returns {Promise<{items: Array, count: number, limit: number, offset: number}|null>}
- */
-async function fetchTrips(filters) {
-  filters = filters || {};
-  return await apiGet('/api/trips', filters);
-}
-
-/**
- * Fetch one trip by ID.
- *
- * @param {number} tripId
- * @returns {Promise<Object|null>}
- */
-async function fetchTripById(tripId) {
-  return await apiGet('/api/trips/' + tripId);
-}
-
-/* ANALYTICS ENDPOINTS */
-
-/**
- * Fetch top pickup zones by trip count.
- *
- * @param {number} topN
- * @returns {Promise<{algorithm: string, top_n: number, zones: Array}|null>}
- */
-async function fetchTopPickupZones(topN) {
-  topN = topN || 10;
-  return await apiGet('/api/analytics/top-pickup-zones', { top_n: topN });
-}
-
-/**
- * Fetch fare distribution buckets.
- *
- * @returns {Promise<{distribution: Array}|null>}
- */
-async function fetchFareDistribution() {
-  return await apiGet('/api/analytics/fare-distribution');
-}
-
-/* ZONE / LOCATION ENDPOINTS */
-
-/**
- * Fetch info for a taxi zone.
- *
- * @param {number} zoneId
- * @returns {Promise<Object|null>}
- */
-async function fetchZone(zoneId) {
-  return await apiGet('/api/zones/' + zoneId);
-}
-
-/* DASHBOARD SUMMARY HELPER */
-
-/**
- * Estimate dashboard stats from a sample.
- *
- * @param {Object} filters
- * @returns {Promise<{totalTrips: number, totalRevenue: number, avgFare: number, avgDistance: number}>}
- */
-async function fetchDashboardStats(filters) {
-  filters = filters || {};
-
-  var data = await fetchTrips(Object.assign({}, filters, { limit: 500 }));
-
-  if (!data || !data.items || data.items.length === 0) {
-    return { totalTrips: 0, totalRevenue: 0, avgFare: 0, avgDistance: 0 };
+async function fetchAverageDistanceByHour() {
+  try {
+    return await fetchJSON("/analytics/average-distance");
+  } catch (_) {
+    return null;
   }
+}
 
-  var trips      = data.items;
-  var totalTrips = data.count;
-  var sampleSize = trips.length;
+// ---- Dashboard summary (exact aggregates from DB) ----
 
-  var sumRevenue  = 0;
-  var sumFare     = 0;
-  var sumDistance = 0;
-
-  for (var i = 0; i < sampleSize; i++) {
-    sumRevenue  += trips[i].total_amount  || 0;
-    sumFare     += trips[i].fare_amount   || 0;
-    sumDistance += trips[i].trip_distance || 0;
-  }
-
-  var avgRevenue  = sumRevenue  / sampleSize;
-  var avgFare     = sumFare     / sampleSize;
-  var avgDistance = sumDistance / sampleSize;
-
-  var estimatedTotalRevenue = avgRevenue * totalTrips;
-
+async function fetchSummary() {
+  const raw = await fetchJSON("/analytics/summary");
   return {
-    totalTrips:   totalTrips,
-    totalRevenue: estimatedTotalRevenue,
-    avgFare:      avgFare,
-    avgDistance:  avgDistance
+    totalTrips:    raw.total_trips      || 0,
+    totalRevenue:  raw.total_revenue    || 0,
+    avgFare:       raw.average_fare     || 0,
+    avgDistance:   raw.average_distance || 0,
   };
 }
 
+// ---- Format helpers used across pages ----
+
+function formatCurrency(value) {
+  return "$" + Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+function formatNumber(value) {
+  return Number(value).toLocaleString("en-US");
+}
+
+function formatDecimal(value, dp = 2) {
+  return Number(value).toFixed(dp);
+}
+
+function formatCompact(value) {
+  const v = Number(value);
+  if (v >= 1e9)  return (v / 1e9).toFixed(1) + "B";
+  if (v >= 1e6)  return (v / 1e6).toFixed(1) + "M";
+  if (v >= 1e3)  return (v / 1e3).toFixed(1) + "K";
+  return String(v);
+}

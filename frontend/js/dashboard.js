@@ -18,32 +18,48 @@ async function loadDashboardData(filters) {
   showChartLoading("zones-chart-container", "Loading top pickup zones…");
   showChartLoading("fare-chart-container",  "Loading fare distribution…");
 
-  var results = await Promise.allSettled([
-    fetchDashboardStats(filters),
-    fetchTopPickupZones(10),
-    fetchFareDistribution(),
-  ]);
+  // Fire all three independently — each section renders as its own data arrives.
+  _loadCards();
+  _loadTopZones();
+  _loadFareDist();
+}
 
-  var stats    = results[0].status === "fulfilled" ? results[0].value : null;
-  var zonesData = results[1].status === "fulfilled" ? results[1].value : null;
-  var fareData  = results[2].status === "fulfilled" ? results[2].value : null;
-
-  if (stats) {
-    renderCards(stats);
-  } else {
+async function _loadCards() {
+  try {
+    var stats = await fetchSummary();
+    if (stats) renderCards(stats);
+    else showCardsError();
+  } catch (err) {
     showCardsError();
+    console.error("Dashboard cards:", err);
   }
+}
 
-  if (zonesData && zonesData.zones && zonesData.zones.length > 0) {
-    _renderTopZones(zonesData.zones);
-  } else {
+async function _loadTopZones() {
+  try {
+    var data = await fetchTopPickupZones(10);
+    if (data && data.zones && data.zones.length > 0) {
+      _renderTopZones(data.zones);
+    } else {
+      showChartError("zones-chart-container", "Could not load pickup zones. Is the backend running?");
+    }
+  } catch (err) {
     showChartError("zones-chart-container", "Could not load pickup zones. Is the backend running?");
+    console.error("Dashboard zones:", err);
   }
+}
 
-  if (fareData && fareData.distribution && fareData.distribution.length > 0) {
-    _renderFareDist(fareData.distribution);
-  } else {
+async function _loadFareDist() {
+  try {
+    var data = await fetchFareDistribution();
+    if (data && data.distribution && data.distribution.length > 0) {
+      _renderFareDist(data.distribution);
+    } else {
+      showChartError("fare-chart-container", "Could not load fare data. Is the backend running?");
+    }
+  } catch (err) {
     showChartError("fare-chart-container", "Could not load fare data. Is the backend running?");
+    console.error("Dashboard fares:", err);
   }
 }
 
