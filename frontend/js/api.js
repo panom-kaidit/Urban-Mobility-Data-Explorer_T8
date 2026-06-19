@@ -3,7 +3,7 @@
 
 const API_BASE_URL = "http://localhost:8000/api";
 
-// ---- Chart.js dark-theme global defaults ----
+// Set global Chart.js defaults for the dark theme.
 if (typeof Chart !== "undefined") {
   Chart.defaults.color           = "#8B9BB4";
   Chart.defaults.borderColor     = "rgba(0, 212, 255, 0.07)";
@@ -19,7 +19,7 @@ if (typeof Chart !== "undefined") {
   Chart.defaults.plugins.tooltip.cornerRadius     = 8;
 }
 
-// ---- Core HTTP helper ----
+// API client functions for fetching data from the backend API. All functions return a Promise that resolves to the parsed JSON response.
 
 async function fetchJSON(endpoint) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`);
@@ -29,7 +29,7 @@ async function fetchJSON(endpoint) {
   return response.json();
 }
 
-// ---- Trips ----
+// Trips endpoints
 
 async function fetchTrips(filters = {}) {
   const params = [];
@@ -47,13 +47,13 @@ async function fetchTripById(tripId) {
   return fetchJSON(`/trips/${tripId}`);
 }
 
-// ---- Zones ----
+// Zones endpoints
 
 async function fetchZone(zoneId) {
   return fetchJSON(`/zones/${zoneId}`);
 }
 
-// ---- Analytics — implemented endpoints ----
+// Analytics endpoints
 
 async function fetchTopPickupZones(topN = 10) {
   return fetchJSON(`/analytics/top-pickup-zones?top_n=${topN}`);
@@ -83,7 +83,7 @@ async function fetchSuspiciousRecords(limit = 100, offset = 0) {
   return fetchJSON(`/suspicious-records?limit=${limit}&offset=${offset}`);
 }
 
-// ---- Analytics — additional endpoints ----
+// Analytics endpoints additional
 
 async function fetchTopDropoffZones(topN = 10) {
   try {
@@ -101,7 +101,7 @@ async function fetchAverageDistanceByHour() {
   }
 }
 
-// ---- Dashboard summary (exact aggregates from DB) ----
+// summary endpoint
 
 async function fetchSummary() {
   const raw = await fetchJSON("/analytics/summary");
@@ -110,10 +110,17 @@ async function fetchSummary() {
     totalRevenue:  raw.total_revenue    || 0,
     avgFare:       raw.average_fare     || 0,
     avgDistance:   raw.average_distance || 0,
+    startDate:     raw.start_date       || null,
+    endDate:       raw.end_date         || null,
+    outlierCount:  raw.outlier_count    || 0,
+    outsideJanuaryCount: raw.outside_january_count || 0,
+    suspiciousRecords: raw.suspicious_records || 0,
+    locationCount: raw.location_count || 0,
+    zoneBoundaryCount: raw.zone_boundary_count || 0,
   };
 }
 
-// ---- Format helpers used across pages ----
+// Formatting utility functions for displaying numbers in the dashboard.
 
 function formatCurrency(value) {
   return "$" + Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 });

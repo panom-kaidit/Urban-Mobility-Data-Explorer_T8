@@ -25,7 +25,7 @@
             <span class="report-card-icon"><i class="fa-solid fa-clipboard-list"></i></span>
             <div class="report-card-title">Executive Summary</div>
             <div class="report-card-desc">
-              High-level overview of the January 2019 NYC Yellow Taxi dataset — trip volumes,
+              Live overview of the January 2019 NYC Yellow Taxi dataset: loaded trips,
               revenue, top zones, and quality metrics.
             </div>
             <div class="report-card-meta">
@@ -51,7 +51,7 @@
             <span class="report-card-icon"><i class="fa-solid fa-map"></i></span>
             <div class="report-card-title">Zone Coverage Report</div>
             <div class="report-card-desc">
-              Demand analysis for all 265 NYC taxi zones. Identifies high-demand hotspots,
+              Demand analysis for all NYC taxi zones. Identifies high-demand hotspots,
               underserved zones, and borough-level coverage.
             </div>
             <div class="report-card-meta">
@@ -64,8 +64,8 @@
             <span class="report-card-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
             <div class="report-card-title">Data Quality Report</div>
             <div class="report-card-desc">
-              ETL pipeline validation report: 13,677 records removed, removal reason distribution,
-              outlier detection statistics.
+              ETL pipeline validation report: removed records, date anomalies,
+              and outlier detection statistics from the current database.
             </div>
             <div class="report-card-meta">
               <span class="badge badge-green">Ready</span>
@@ -81,8 +81,8 @@
               and fare structure by route type.
             </div>
             <div class="report-card-meta">
-              <span class="badge badge-cyan">Preview</span>
-              <button class="btn btn-ghost btn-sm" onclick="viewReport('mobility')">View Report</button>
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('mobility')">View Report</button>
             </div>
           </div>
 
@@ -117,7 +117,7 @@
         <div class="summary-table-panel" id="reports-summary-table">
           <div class="summary-table-panel-header">
             <div class="summary-table-panel-title">Dataset Overview</div>
-            <span id="reports-summary-badge" class="badge">Loading…</span>
+            <span id="reports-summary-badge" class="badge">Loading...</span>
           </div>
           <div style="overflow-x:auto">
             <table class="data-table" id="reports-data-table">
@@ -131,7 +131,7 @@
               <tbody id="reports-data-tbody">
                 <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted)">
                   <div class="loading-spinner" style="margin:0 auto 0.5rem"></div>
-                  Loading summary…
+                  Loading summary...
                 </td></tr>
               </tbody>
             </table>

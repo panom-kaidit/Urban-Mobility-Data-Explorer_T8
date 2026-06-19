@@ -1,86 +1,70 @@
 // Reports page controller.
 // Requires: api.js, charts.js, navbar.js, sidebar.js
 
-
-// This object holds the data for each report section.
-var REPORT_DATA = {
-  executive: {
-    title: "Executive Summary - NYC Yellow Taxi January 2019",
-    sections: [
-      { heading: "Dataset Overview", body: "7,682,940 clean trip records loaded from a raw Parquet source. 13,677 records (0.18%) were removed during ETL validation. The dataset covers January 1–31, 2019 across 265 NYC taxi zones in 5 boroughs + EWR." },
-      { heading: "Revenue", body: "Total revenue (from sampled trips) extrapolated from a 500-trip sample. Average fare per trip is approximately $16–18. Manhattan generates the highest revenue share (&gt;55% of total), followed by Brooklyn and Queens." },
-      { heading: "Top Zones", body: "JFK Airport, LaGuardia Airport, and Midtown Manhattan consistently dominate pickup volume. The top 10 zones (ranked by custom Merge Sort algorithm) account for roughly 30% of all trips." },
-      { heading: "Data Quality", body: "Primary rejection reasons: missing required values (NaN in datetime/location/distance), invalid timestamps (dropoff &le; pickup), negative monetary values. No data was altered — only removed or flagged." },
-    ],
-  },
-  revenue: {
-    title: "Revenue Analysis - Borough & Payment Breakdown",
-    sections: [
-      { heading: "Revenue by Borough", body: "Manhattan leads with the highest total revenue from taxi trips. Brooklyn and Queens follow significantly behind due to lower average fares and trip counts from outer boroughs." },
-      { heading: "Payment Methods", body: "Credit card payments (type 1) account for the majority of transactions and carry a slightly higher average fare. Cash payments (type 2) are the second most common." },
-      { heading: "Fare Distribution", body: "The $0–10 and $10–20 ranges contain the most trips (short city rides). Fares above $50 represent a small but significant revenue segment (airport transfers, long-distance rides)." },
-      { heading: "Daily Trend", body: "Revenue shows a consistent weekday pattern with a slight dip on weekends. No major anomalies were detected in the January 2019 daily revenue series." },
-    ],
-  },
-  zones: {
-    title: "Zone Coverage Report - 265 NYC Taxi Zones",
-    sections: [
-      { heading: "Coverage", body: "265 zones loaded from taxi_zone_lookup.csv. 260 zones have corresponding GeoJSON polygon boundaries loaded from the taxi_zones shapefile. 5 zones (likely water/unknown) have no geometry." },
-      { heading: "High-Demand Hotspots", body: "Airport zones (JFK, LaGuardia), Midtown, Upper East Side, and Times Square/Theater District are the top pickup zones. These zones generate disproportionately high revenue per trip due to longer distances or flat-rate airport fares." },
-      { heading: "Underserved Zones", body: "Staten Island, parts of the Bronx, and outer Queens zones have minimal trip volume, reflecting lower taxi demand in those areas relative to population." },
-      { heading: "Borough Summary", body: "Manhattan: 70 zones. Brooklyn: 61 zones. Queens: 69 zones. Bronx: 43 zones. Staten Island: 20 zones. EWR (Newark): 1 zone." },
-    ],
-  },
-  quality: {
-    title: "Data Quality Report - ETL Validation Results",
-    sections: [
-      { heading: "Total Removed", body: "13,677 records (0.18% of raw data) were removed during the cleaning stage. All removed records are stored in the suspicious_records table for audit purposes." },
-      { heading: "Removal Reasons", body: "missing_required_value: NaN in datetime, location_id, trip_distance, or amount fields. invalid_timestamp: dropoff_datetime &le; pickup_datetime. negative_distance: trip_distance &lt; 0. negative_money_value: fare_amount or total_amount &lt; 0. duplicate_trip: exact row duplicate." },
-      { heading: "Outlier Detection", body: "Additional records are flagged as outliers (is_outlier=1) but kept in the dataset: distance &gt;100mi, amount &gt;$500, speed &gt;120mph, duration &gt;8h. These 'suspicious but plausible' trips are labeled for downstream analysis." },
-      { heading: "Pipeline Integrity", body: "Foreign key constraints are enforced (PRAGMA foreign_keys = ON). Load scripts use UPSERT semantics — safe to re-run without destroying existing data. Audit logs are written to etl/data/logs/ after each run." },
-    ],
-  },
-  mobility: {
-    title: "Mobility Patterns - Trip Flow Analysis",
-    sections: [
-      { heading: "Pickup vs. Dropoff Demand", body: "Top pickup zones and top dropoff zones show strong overlap for airport and Midtown zones. Residential zones tend to have more pickups in the morning and more dropoffs in the evening." },
-      { heading: "Borough Flow", body: "The majority of trips are intra-Manhattan (pickup and dropoff both in Manhattan). Cross-borough trips typically involve airport connections or commuter routes." },
-      { heading: "Fare by Route Type", body: "Airport routes (flat-rate zones) have significantly higher fares than standard metered rides. Short city hops (&lt;2 miles) dominate by volume but contribute less to total revenue." },
-      { heading: "Pending Data", body: "Top dropoff zone analytics and average-distance-by-hour require backend endpoints that are not yet implemented (GET /api/analytics/top-dropoff-zones and GET /api/analytics/average-distance)." },
-    ],
-  },
+var _reportContext = {
+  summary: null,
+  topPickupZones: [],
+  topDropoffZones: [],
+  revenueByBorough: [],
+  revenueTrend: [],
 };
 
-var SUMMARY_ROWS = [
-  { metric: "Total Trip Records",       value: "7,682,940",  notes: "After ETL cleaning" },
-  { metric: "Suspicious Records",       value: "13,677",     notes: "Removed during validation" },
-  { metric: "Rejection Rate",           value: "0.18%",      notes: "Very low — good data quality" },
-  { metric: "Date Range",               value: "Jan 1–31, 2019", notes: "NYC Yellow Taxi" },
-  { metric: "Taxi Zones",               value: "265",        notes: "Unique location IDs" },
-  { metric: "Zone Boundaries",          value: "260",        notes: "GeoJSON polygons" },
-  { metric: "Boroughs",                 value: "5 + EWR",    notes: "Manhattan, Brooklyn, Queens, Bronx, Staten Island" },
-  { metric: "Database Size",            value: "~2.1 GB",    notes: "SQLite file" },
-  { metric: "API Endpoints",            value: "11",         notes: "9 implemented, 2 pending" },
-  { metric: "ETL Chunk Size",           value: "50,000 rows", notes: "Per batch" },
-];
+var _rawParquetRows = 7696617;
 
 async function initReportsPage() {
   injectSidebar("reports");
   injectNavbar();
   setNavbarTitle("Reports");
 
-  _renderSummaryTable();
-  await _populateSummaryBadge();
+  _renderSummaryTable(null);
+  await _loadReportContext();
+  _renderSummaryTable(_reportContext.summary);
 }
 
-function _renderSummaryTable() {
+async function _loadReportContext() {
   var badge = document.getElementById("reports-summary-badge");
-  if (badge) { badge.textContent = "Static Data"; badge.className = "badge badge-cyan"; }
+  if (badge) {
+    badge.textContent = "Loading...";
+    badge.className = "badge badge-cyan";
+  }
 
+  try {
+    var results = await Promise.all([
+      fetchSummary(),
+      fetchTopPickupZones(10).catch(function() { return null; }),
+      fetchTopDropoffZones(10).catch(function() { return null; }),
+      fetchRevenueByBorough().catch(function() { return null; }),
+      fetchRevenueTrends().catch(function() { return null; }),
+    ]);
+
+    _reportContext.summary = results[0];
+    _reportContext.topPickupZones = results[1] && results[1].zones ? results[1].zones : [];
+    _reportContext.topDropoffZones = results[2] && results[2].zones ? results[2].zones : [];
+    _reportContext.revenueByBorough = results[3] && results[3].boroughs ? results[3].boroughs : [];
+    _reportContext.revenueTrend = results[4] && results[4].trend ? results[4].trend : [];
+
+    if (badge) {
+      badge.textContent = "Live Data";
+      badge.className = "badge badge-green";
+    }
+  } catch (err) {
+    console.error("Reports summary:", err);
+    if (badge) {
+      badge.textContent = "API Offline";
+      badge.className = "badge badge-yellow";
+    }
+  }
+}
+
+function _renderSummaryTable(summary) {
   var tbody = document.getElementById("reports-data-tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = SUMMARY_ROWS.map(function(r) {
+  var rows = summary ? _buildLiveSummaryRows(summary) : [
+    { metric: "Dataset Status", value: "Loading", notes: "Reading current database summary from the API." },
+  ];
+
+  tbody.innerHTML = rows.map(function(r) {
     return (
       "<tr>" +
         "<td style='font-weight:600;color:var(--text-primary)'>" + r.metric + "</td>" +
@@ -91,18 +75,102 @@ function _renderSummaryTable() {
   }).join("");
 }
 
-async function _populateSummaryBadge() {
-  try {
-    var data = await fetchRevenueTrends();
-    if (data && data.trend && data.trend.length > 0) {
-      var badge = document.getElementById("reports-summary-badge");
-      if (badge) { badge.textContent = "Live Data"; badge.className = "badge badge-green"; }
-    }
-  } catch (_) {}
+function _buildLiveSummaryRows(summary) {
+  var loadedTrips = Number(summary.totalTrips || 0);
+  var loadedPercent = _rawParquetRows ? ((loadedTrips / _rawParquetRows) * 100).toFixed(1) + "%" : "n/a";
+  var rejectionRate = loadedTrips
+    ? ((Number(summary.suspiciousRecords || 0) / (loadedTrips + Number(summary.suspiciousRecords || 0))) * 100).toFixed(2) + "%"
+    : "0%";
+
+  return [
+    { metric: "Loaded Trip Records", value: formatNumber(loadedTrips), notes: "Rows currently present in data/mobility.db." },
+    { metric: "Raw Parquet Rows", value: formatNumber(_rawParquetRows), notes: "Rows reported by yellow_tripdata_2019-01.parquet." },
+    { metric: "Load Coverage", value: loadedPercent, notes: "The database appears partially loaded if this is below 100%." },
+    { metric: "Total Revenue", value: formatCurrency(summary.totalRevenue), notes: "Computed from loaded trips." },
+    { metric: "Average Fare", value: formatCurrency(summary.avgFare), notes: "Average fare_amount across loaded trips." },
+    { metric: "Average Distance", value: formatDecimal(summary.avgDistance, 2) + " mi", notes: "Average trip_distance across loaded trips." },
+    { metric: "Date Range", value: _formatDateRange(summary), notes: "Pickup dates found in the loaded database." },
+    { metric: "Outside Jan 2019", value: formatNumber(summary.outsideJanuaryCount), notes: "Rows with pickup dates outside the expected January 2019 range." },
+    { metric: "Removed Records", value: formatNumber(summary.suspiciousRecords), notes: "Rows stored in suspicious_records during cleaning." },
+    { metric: "Rejection Rate", value: rejectionRate, notes: "Removed rows divided by loaded plus removed rows." },
+    { metric: "Outliers Kept", value: formatNumber(summary.outlierCount), notes: "Rows flagged as outliers but retained for analysis." },
+    { metric: "Taxi Zones", value: formatNumber(summary.locationCount), notes: "Location lookup records." },
+    { metric: "Zone Boundaries", value: formatNumber(summary.zoneBoundaryCount), notes: "GeoJSON boundaries loaded for map rendering." },
+    { metric: "API Endpoints", value: "11+", notes: "Includes summary, pickup/dropoff zones, fare, revenue, trips, locations, and suspicious records." },
+  ];
+}
+
+function _formatDateRange(summary) {
+  if (!summary || !summary.startDate || !summary.endDate) return "n/a";
+  if (summary.startDate === summary.endDate) return summary.startDate;
+  return summary.startDate + " to " + summary.endDate;
+}
+
+function _getReports() {
+  var summary = _reportContext.summary || {};
+  var topPickup = _reportContext.topPickupZones.slice(0, 3).map(_zoneName).join(", ") || "No pickup zone data loaded";
+  var topDropoff = _reportContext.topDropoffZones.slice(0, 3).map(_dropoffZoneName).join(", ") || "No dropoff zone data loaded";
+  var topBorough = _reportContext.revenueByBorough[0];
+  var topBoroughText = topBorough
+    ? topBorough.borough + " leads with " + formatCurrency(topBorough.total_revenue) + " from " + formatNumber(topBorough.total_trips) + " trips."
+    : "No borough revenue data loaded.";
+
+  return {
+    executive: {
+      title: "Executive Summary - NYC Yellow Taxi January 2019",
+      sections: [
+        { heading: "Current Database", body: formatNumber(summary.totalTrips || 0) + " clean trip records are currently loaded from " + formatNumber(_rawParquetRows) + " raw Parquet rows. This indicates the SQLite database is not yet a complete load of the raw dataset." },
+        { heading: "Revenue", body: "Loaded trips contain " + formatCurrency(summary.totalRevenue || 0) + " in total revenue, with an average fare of " + formatCurrency(summary.avgFare || 0) + " and average distance of " + formatDecimal(summary.avgDistance || 0, 2) + " miles." },
+        { heading: "Date Integrity", body: "The expected pickup window is January 1-31, 2019. The loaded database currently spans " + _formatDateRange(summary) + " and includes " + formatNumber(summary.outsideJanuaryCount || 0) + " rows outside January 2019." },
+        { heading: "Top Pickup Zones", body: "The leading pickup zones in the loaded database are " + topPickup + "." },
+      ],
+    },
+    revenue: {
+      title: "Revenue Analysis - Borough & Payment Breakdown",
+      sections: [
+        { heading: "Borough Revenue", body: topBoroughText },
+        { heading: "Loaded Revenue Base", body: "All revenue calculations on this page come from the current SQLite database, so they will change after a full ETL reload." },
+        { heading: "Daily Trend", body: "The API currently returns " + formatNumber(_reportContext.revenueTrend.length) + " daily revenue points." },
+      ],
+    },
+    zones: {
+      title: "Zone Coverage Report - NYC Taxi Zones",
+      sections: [
+        { heading: "Coverage", body: formatNumber(summary.locationCount || 0) + " taxi zones are loaded, with " + formatNumber(summary.zoneBoundaryCount || 0) + " spatial boundaries available." },
+        { heading: "High-Demand Pickups", body: "The highest pickup zones are " + topPickup + "." },
+        { heading: "High-Demand Dropoffs", body: "The highest dropoff zones are " + topDropoff + "." },
+      ],
+    },
+    quality: {
+      title: "Data Quality Report - ETL Validation Results",
+      sections: [
+        { heading: "Removed Records", body: formatNumber(summary.suspiciousRecords || 0) + " records are currently stored in suspicious_records. In this database, removals are from invalid timestamps and negative money values." },
+        { heading: "Outliers Retained", body: formatNumber(summary.outlierCount || 0) + " records are flagged as outliers but kept in the trips table for analysis." },
+        { heading: "Date Anomalies", body: formatNumber(summary.outsideJanuaryCount || 0) + " loaded records fall outside January 2019. The ETL cleaner should reject out-of-period pickup/dropoff dates before the final load." },
+      ],
+    },
+    mobility: {
+      title: "Mobility Patterns - Trip Flow Analysis",
+      sections: [
+        { heading: "Pickup vs. Dropoff Demand", body: "Top pickup zones: " + topPickup + ". Top dropoff zones: " + topDropoff + "." },
+        { heading: "Borough Flow", body: "The current data is strongly Manhattan-heavy, which may reflect the partial database load. Re-run the full ETL before treating borough share as final." },
+        { heading: "Implemented Analytics", body: "Top dropoff zones and average distance by hour are implemented in the backend and available through the shared API client." },
+      ],
+    },
+  };
+}
+
+function _zoneName(zone) {
+  return zone.zone_name || zone.pickup_zone || "Unknown";
+}
+
+function _dropoffZoneName(zone) {
+  return zone.dropoff_zone || zone.zone_name || "Unknown";
 }
 
 function viewReport(type) {
-  var def = REPORT_DATA[type];
+  var reports = _getReports();
+  var def = reports[type];
   if (!def) return;
 
   var viewer = document.getElementById("report-viewer");
