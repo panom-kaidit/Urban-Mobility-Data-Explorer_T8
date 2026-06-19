@@ -8,29 +8,53 @@
 
 /* TABLET */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); z-index: 200; }
+  .sidebar {
+    transform: translateX(-100%);
+    width:     var(--sidebar-width);
+    z-index:   200;
+  }
   .sidebar.open { transform: translateX(0); }
+  .sidebar.open .sidebar-link-label,
+  .sidebar.open .sidebar-section-title,
+  .sidebar.open .sidebar-logo-text,
+  .sidebar.open .sidebar-footer {
+    opacity: 1;
+  }
   .main-content { margin-left: 0; }
-  .navbar { left: 0; }
+  .navbar       { left: 0; }
   .navbar-toggle { display: flex; }
-  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .cards-grid   { grid-template-columns: repeat(2, 1fr); }
   .filters-grid { grid-template-columns: repeat(2, 1fr); }
-  .charts-grid { grid-template-columns: 1fr; }
+  .charts-grid  { grid-template-columns: 1fr; }
+
+  .dq-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .report-grid   { grid-template-columns: 1fr 1fr; }
+  .zone-layout   { grid-template-columns: 1fr; }
 }
 
 /* MOBILE */
 @media (max-width: 480px) {
-  .content-inner { padding: 1rem; }
-  .cards-grid { grid-template-columns: 1fr; }
-  .filters-grid { grid-template-columns: 1fr; }
-  .page-title { font-size: 1.25rem; }
-  .filters-actions { flex-direction: column; }
+  .content-inner  { padding: 1rem; }
+  .cards-grid     { grid-template-columns: 1fr; }
+  .dq-stats-grid  { grid-template-columns: 1fr; }
+  .filters-grid   { grid-template-columns: 1fr; }
+  .report-grid    { grid-template-columns: 1fr; }
+
+  .page-title           { font-size: 1.2rem; }
+  .filters-actions      { flex-direction: column; }
   .filters-actions .btn { width: 100%; justify-content: center; }
-  .navbar-date { display: none; }
-  .stat-card-value { font-size: 1.4rem; }
+  .navbar-date          { display: none; }
+  .stat-card-value      { font-size: 1.4rem; }
+  .navbar               { padding: 0 1rem; }
 }
 
 /* WIDE DESKTOP */
 @media (min-width: 1400px) {
-  .content-inner { max-width: 1440px; margin: 0 auto; }
+  .content-inner { max-width: 1500px; margin: 0 auto; }
+}
+
+/* ---- Very wide ---- */
+@media (min-width: 1800px) {
+  .cards-grid { grid-template-columns: repeat(4, 1fr); }
 }
