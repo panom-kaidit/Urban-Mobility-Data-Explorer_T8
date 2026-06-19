@@ -3,115 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard &ndash; Urban Mobility Explorer</title>
+  <title>Dashboard &mdash; Urban Mobility Explorer</title>
 
-  <!-- CSS: styles, dashboard, responsive -->
   <link rel="stylesheet" href="../css/styles.css" />
   <link rel="stylesheet" href="../css/dashboard.css" />
   <link rel="stylesheet" href="../css/responsive.css" />
 
-  <!-- Chart.js v4 (CDN) - must load before dashboard.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js must load before api.js (which sets global defaults) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-  <!-- App wrapper; sidebar/navbar injected by JS -->
   <div class="app-wrapper" id="app-wrapper">
 
-    <!-- Main content -->
     <main class="main-content" id="main-content">
       <div class="content-inner">
 
-        <!-- Page header -->
-        <div class="page-header">
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">
-            NYC Yellow Taxi trip overview &mdash; January 2019
-          </p>
-        </div>
+        <!-- KPI cards (rendered by cards.js) -->
+        <div class="cards-grid" id="stats-cards"></div>
 
-        <!-- Summary cards (injected) -->
-        <div class="cards-grid" id="stats-cards">
-          <!--
-            Cards are injected here by dashboard.js.
-            You will see loading skeletons while data is fetching.
-          -->
-        </div>
+        <!-- Filters panel (rendered by filters.js) -->
+        <div id="filters-container"></div>
 
-        <!-- Filters panel (injected) -->
-        <div id="filters-container">
-          <!--
-            Filter controls are injected here by filters.js → injectFilters().
-          -->
-        </div>
-
-        <!-- Charts section -->
-        <div class="charts-grid">
-
-          <!-- TOP PICKUP ZONES -->
-          <div class="chart-card">
-            <div class="chart-card-header">
-              <div>
-                <div class="chart-card-title">&#x1F3D9;&#xFE0F; Top Pickup Zones</div>
-                <div class="chart-card-subtitle">
-                  Top 10 zones by number of pickups &middot; sorted with custom merge sort
-                </div>
-              </div>
-              <!-- Badge shows which algorithm powered this chart -->
-              <span class="badge">Merge Sort</span>
-            </div>
-
-            <!-- Canvas injected by dashboard.js -->
-            <div class="chart-container" id="zones-chart-container">
-              <!-- Loading spinner shown on first paint -->
-              <div class="chart-placeholder">
-                <div class="loading-spinner"></div>
-                <span>Loading top zones&hellip;</span>
-              </div>
-            </div>
+        <!-- Summary data table -->
+        <div class="summary-table-panel" id="reports-summary-table">
+          <div class="summary-table-panel-header">
+            <div class="summary-table-panel-title">Dataset Overview</div>
+            <span id="reports-summary-badge" class="badge">Loading…</span>
           </div>
-          <!-- end Top Pickup Zones card -->
-
-          <!-- FARE DISTRIBUTION -->
-          <div class="chart-card">
-            <div class="chart-card-header">
-              <div>
-                <div class="chart-card-title">&#x1F4B0; Fare Distribution</div>
-                <div class="chart-card-subtitle">
-                  Number of trips in each fare range ($0&ndash;10, $10&ndash;20, &hellip;, $50+)
-                </div>
-              </div>
-            </div>
-
-            <!-- Canvas injected by dashboard.js -->
-            <div class="chart-container" id="fare-chart-container">
-              <div class="chart-placeholder">
-                <div class="loading-spinner"></div>
-                <span>Loading fare data&hellip;</span>
-              </div>
-            </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="reports-data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="reports-data-tbody">
+                <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted)">
+                  <div class="loading-spinner" style="margin:0 auto 0.5rem"></div>
+                  Loading summary…
+                </td></tr>
+              </tbody>
+            </table>
           </div>
-          <!-- end Fare Distribution card -->
-
         </div>
-        <!-- end charts-grid -->
 
-      </div>
-      <!-- end content-inner -->
+        </div><!-- .charts-grid -->
+
+      </div><!-- .content-inner -->
     </main>
-    <!-- end main-content -->
 
-  </div>
-  <!-- end app-wrapper -->
+  </div><!-- .app-wrapper -->
 
-
-  <!-- JS load order: api, cards, navbar, sidebar, filters, dashboard -->
+  <!-- Load order: Chart.js already loaded above, then api, charts, components, page -->
   <script src="../js/api.js"></script>
+  <script src="../js/charts.js"></script>
   <script src="../components/cards.js"></script>
   <script src="../components/navbar.js"></script>
   <script src="../components/sidebar.js"></script>
   <script src="../js/filters.js"></script>
   <script src="../js/dashboard.js"></script>
+  <script src="../js/reports.js"></script>
 
 </body>
 </html>
