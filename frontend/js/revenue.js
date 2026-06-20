@@ -1,216 +1,187 @@
-// Borough color system — kept consistent across every chart on this page,
-// drawn from NYC subway line colors so each borough has one fixed identity.
-const BOROUGH_COLORS = {
-  Manhattan:        "#FCCC0A",
-  Brooklyn:         "#FF6319",
-  Queens:           "#B933AD",
-  Bronx:            "#00933C",
-  "Staten Island":  "#9AA0AC",
-  EWR:              "#4D7FE0",
-};
+// Revenue analytics page controller.
+// Requires: api.js, charts.js, navbar.js, sidebar.js
 
-function formatCurrency(value) {
-  return "$" + Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
-}
+async function initRevenuePage() {
+  injectSidebar("revenue");
+  injectNavbar();
+  setNavbarTitle("Revenue Analytics");
 
-function formatNumber(value) {
-  return Number(value).toLocaleString("en-US");
+  await Promise.allSettled([
+    loadRevenueByBorough(),
+    loadRevenueTrend(),
+    loadAverageFare(),
+    loadFareDistribution(),
+  ]);
 }
 
 async function loadRevenueByBorough() {
-  const data = await fetchJSON("/analytics/revenue-by-borough");
-  const boroughs = data.boroughs;
+  var wrap = document.getElementById("wrap-revenue-by-borough");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
-  const totalRevenue = boroughs.reduce((sum, b) => sum + b.total_revenue, 0);
-  const totalTrips    = boroughs.reduce((sum, b) => sum + b.total_trips, 0);
-  const avgFare        = totalRevenue / totalTrips;
-  const topBorough     = boroughs[0];
+  try {
+    var data     = await fetchRevenueByBorough();
+    var boroughs = data.boroughs;
 
-  document.getElementById("kpi-total-revenue").textContent = formatCurrency(totalRevenue);
-  document.getElementById("kpi-total-trips").textContent   = formatNumber(totalTrips);
-  document.getElementById("kpi-avg-fare").textContent      = formatCurrency(avgFare.toFixed(2));
-  document.getElementById("kpi-top-borough").textContent   = topBorough.borough;
-  document.getElementById("kpi-borough-count").textContent = boroughs.length;
+    var totalRevenue = boroughs.reduce(function(s, b) { return s + b.total_revenue; }, 0);
+    var totalTrips   = boroughs.reduce(function(s, b) { return s + b.total_trips; }, 0);
+    var avgFare      = totalRevenue / totalTrips;
+    var top          = boroughs[0];
 
-  const topShare = ((topBorough.total_revenue / totalRevenue) * 100).toFixed(0);
-  document.getElementById("caption-borough").textContent =
-    `${topBorough.borough} generates ${topShare}% of all revenue from ${formatNumber(topBorough.total_trips)} trips.`;
+    _setKpi("kpi-total-revenue", formatCurrency(totalRevenue));
+    _setKpi("kpi-total-trips",   formatNumber(totalTrips));
+    _setKpi("kpi-avg-fare",      "$" + Number(avgFare).toFixed(2));
+    _setKpi("kpi-top-borough",   top.borough);
 
-  new Chart(document.getElementById("chart-revenue-by-borough"), {
-    type: "bar",
-    data: {
-      labels: boroughs.map(b => b.borough),
-      datasets: [{
-        label: "Total Revenue",
-        data: boroughs.map(b => b.total_revenue),
-        backgroundColor: boroughs.map(b => BOROUGH_COLORS[b.borough] || "#9AA0AC"),
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      indexAxis: "y",
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          ticks: { color: "#9AA0AC", callback: v => "$" + (v / 1e6).toFixed(0) + "M" },
-          grid: { color: "#2A2E37" },
-        },
-        y: {
-          ticks: { color: "#F2F1ED" },
-          grid: { display: false },
-        },
-      },
-    },
-  });
+    var topShare = ((top.total_revenue / totalRevenue) * 100).toFixed(0);
+    _setCaption("caption-borough",
+      top.borough + " generates " + topShare + "% of revenue from " +
+      formatNumber(top.total_trips) + " trips."
+    );
+
+    if (wrap) wrap.innerHTML = '<canvas id="chart-revenue-by-borough"></canvas>';
+    createHorizontalBarChart(
+      document.getElementById("chart-revenue-by-borough"),
+      boroughs.map(function(b) { return b.borough; }),
+      boroughs.map(function(b) { return b.total_revenue; }),
+      boroughs.map(function(b) { return boroughColor(b.borough); }),
+      function(ctx) {
+        return formatNumber(boroughs[ctx.dataIndex].total_trips) + " trips";
+      }
+    );
+
+  } catch (err) {
+    if (wrap) wrap.innerHTML = _errHtml("Revenue by Borough");
+    console.error("loadRevenueByBorough:", err);
+  }
 }
 
 async function loadRevenueTrend() {
-  const data = await fetchJSON("/analytics/revenue-trends");
-  const trend = data.trend;
+  var wrap = document.getElementById("wrap-revenue-trend");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
-  const peakDay = trend.reduce((max, d) => d.total_revenue > max.total_revenue ? d : max, trend[0]);
-  const peakLabel = new Date(peakDay.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  try {
+    var data  = await fetchRevenueTrends();
+    var trend = data.trend;
 
-  document.getElementById("caption-trend").textContent =
-    `Peak day was ${peakLabel} with ${formatCurrency(peakDay.total_revenue)} in revenue.`;
+    var peak = trend.reduce(function(max, d) {
+      return d.total_revenue > max.total_revenue ? d : max;
+    }, trend[0]);
+    var peakLabel = new Date(peak.date + "T00:00:00").toLocaleDateString("en-US", {
+      month: "short", day: "numeric",
+    });
+    _setCaption("caption-trend",
+      "Peak: " + peakLabel + " — " + formatCurrency(peak.total_revenue)
+    );
 
-  new Chart(document.getElementById("chart-revenue-trend"), {
-    type: "line",
-    data: {
-      labels: trend.map(d => new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
-      datasets: [{
-        label: "Daily Revenue",
-        data: trend.map(d => d.total_revenue),
-        borderColor: "#FCCC0A",
-        backgroundColor: "rgba(252, 204, 10, 0.12)",
-        fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        borderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          ticks: { color: "#9AA0AC", maxTicksLimit: 8 },
-          grid: { display: false },
-        },
-        y: {
-          ticks: { color: "#9AA0AC", callback: v => "$" + (v / 1000).toFixed(0) + "K" },
-          grid: { color: "#2A2E37" },
-        },
-      },
-    },
-  });
+    if (wrap) wrap.innerHTML = '<canvas id="chart-revenue-trend"></canvas>';
+    createLineChart(
+      document.getElementById("chart-revenue-trend"),
+      trend.map(function(d) {
+        return new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }),
+      trend.map(function(d) { return d.total_revenue; }),
+      "#FCCC0A",
+      true
+    );
+
+  } catch (err) {
+    if (wrap) wrap.innerHTML = _errHtml("Revenue Trend");
+    console.error("loadRevenueTrend:", err);
+  }
 }
 
 async function loadAverageFare() {
-  const data = await fetchJSON("/analytics/average-fare");
-  const rows = data.fares;
+  var wrap = document.getElementById("wrap-average-fare");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
-  // Focus on the two dominant payment methods per borough to keep the
-  // chart readable — Credit Card and Cash account for the vast majority
-  // of trips, and comparing them is the most useful story here.
-  const boroughs = [...new Set(rows.map(r => r.borough))];
-  const creditCard = boroughs.map(b => {
-    const row = rows.find(r => r.borough === b && r.payment_method === "Credit Card");
-    return row ? row.avg_fare : 0;
-  });
-  const cash = boroughs.map(b => {
-    const row = rows.find(r => r.borough === b && r.payment_method === "Cash");
-    return row ? row.avg_fare : 0;
-  });
+  try {
+    var data = await fetchAverageFare();
+    var rows = data.fares;
 
-  const ccAvg = creditCard.reduce((a, b) => a + b, 0) / creditCard.length;
-  const cashAvg = cash.reduce((a, b) => a + b, 0) / cash.length;
-  const higher = ccAvg > cashAvg ? "Credit card" : "Cash";
+    var boroughList = [];
+    rows.forEach(function(r) {
+      if (boroughList.indexOf(r.borough) === -1) boroughList.push(r.borough);
+    });
 
-  document.getElementById("caption-fare").textContent =
-    `${higher} fares run higher on average across boroughs.`;
+    var creditCard = boroughList.map(function(b) {
+      var r = rows.find(function(x) { return x.borough === b && x.payment_method === "Credit Card"; });
+      return r ? r.avg_fare : 0;
+    });
+    var cash = boroughList.map(function(b) {
+      var r = rows.find(function(x) { return x.borough === b && x.payment_method === "Cash"; });
+      return r ? r.avg_fare : 0;
+    });
 
-  new Chart(document.getElementById("chart-average-fare"), {
-    type: "bar",
-    data: {
-      labels: boroughs,
-      datasets: [
-        {
-          label: "Credit Card",
-          data: creditCard,
-          backgroundColor: "#FCCC0A",
-          borderRadius: 4,
-        },
-        {
-          label: "Cash",
-          data: cash,
-          backgroundColor: "#4D7FE0",
-          borderRadius: 4,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: "#F2F1ED" } },
-      },
-      scales: {
-        x: {
-          ticks: { color: "#9AA0AC" },
-          grid: { display: false },
-        },
-        y: {
-          ticks: { color: "#9AA0AC", callback: v => "$" + v },
-          grid: { color: "#2A2E37" },
-        },
-      },
-    },
-  });
+    var ccAvg   = creditCard.reduce(function(a, b) { return a + b; }, 0) / Math.max(creditCard.length, 1);
+    var cashAvg = cash.reduce(function(a, b) { return a + b; }, 0) / Math.max(cash.length, 1);
+    _setCaption("caption-fare",
+      (ccAvg > cashAvg ? "Credit card" : "Cash") + " fares run higher on average."
+    );
+
+    if (wrap) wrap.innerHTML = '<canvas id="chart-average-fare"></canvas>';
+    createGroupedBarChart(
+      document.getElementById("chart-average-fare"),
+      boroughList,
+      [
+        { label: "Credit Card", data: creditCard, backgroundColor: "#FCCC0A", borderRadius: 4 },
+        { label: "Cash",        data: cash,        backgroundColor: "#4D7FE0", borderRadius: 4 },
+      ]
+    );
+
+  } catch (err) {
+    if (wrap) wrap.innerHTML = _errHtml("Average Fare");
+    console.error("loadAverageFare:", err);
+  }
 }
 
 async function loadFareDistribution() {
-  const data = await fetchJSON("/analytics/fare-distribution");
-  const rows = data.distribution;
+  var wrap = document.getElementById("wrap-fare-distribution");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
-  const busiest = rows.reduce((max, r) => r.trip_count > max.trip_count ? r : max, rows[0]);
+  try {
+    var data = await fetchFareDistributionDetailed();
+    var rows = data.distribution;
 
-  document.getElementById("caption-distribution").textContent =
-    `Most trips fall in the $${busiest.range} range, at an average of $${busiest.avg_fare}.`;
+    var busiest = rows.reduce(function(max, r) {
+      return r.trip_count > max.trip_count ? r : max;
+    }, rows[0]);
 
-  new Chart(document.getElementById("chart-fare-distribution"), {
-    type: "bar",
-    data: {
-      labels: rows.map(r => "$" + r.range),
-      datasets: [{
-        label: "Trips",
-        data: rows.map(r => r.trip_count),
-        backgroundColor: "#FF6319",
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          ticks: { color: "#9AA0AC" },
-          grid: { display: false },
-        },
-        y: {
-          ticks: { color: "#9AA0AC", callback: v => (v / 1e6).toFixed(1) + "M" },
-          grid: { color: "#2A2E37" },
-        },
-      },
-    },
-  });
+    _setCaption("caption-distribution",
+      "Most trips: $" + busiest.range +
+      (busiest.avg_fare ? " range — avg $" + busiest.avg_fare : "") + "."
+    );
+
+    if (wrap) wrap.innerHTML = '<canvas id="chart-fare-distribution"></canvas>';
+    createBarChart(
+      document.getElementById("chart-fare-distribution"),
+      rows.map(function(r) { return "$" + r.range; }),
+      rows.map(function(r) { return r.trip_count; }),
+      ["#10F0A0", "#00D4FF", "#3B82F6", "#8B5CF6", "#FF9F43", "#FF5A7A"]
+    );
+
+  } catch (err) {
+    if (wrap) wrap.innerHTML = _errHtml("Fare Distribution");
+    console.error("loadFareDistribution:", err);
+  }
 }
 
-loadRevenueByBorough();
-loadRevenueTrend();
-loadAverageFare();
-loadFareDistribution();
+function _setKpi(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function _setCaption(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function _loadHtml() {
+  return '<div class="chart-placeholder"><div class="loading-spinner"></div></div>';
+}
+function _errHtml(title) {
+  return (
+    '<div class="chart-placeholder">' +
+      '<span style="color:var(--accent-red)">&#x26A0;&#xFE0F; Could not load ' + title + '.</span>' +
+    '</div>'
+  );
+}
+
+document.addEventListener("DOMContentLoaded", initRevenuePage);

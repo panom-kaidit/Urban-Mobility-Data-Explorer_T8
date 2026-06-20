@@ -1,168 +1,124 @@
-/* 
-   Design tokens — NYC Yellow Cab x Subway line color system
-   Boroughs are color-coded consistently across every chart.
- */
-:root {
-  --asphalt:        #16181D;
-  --panel:           #1F2229;
-  --panel-border:    #2A2E37;
 
-  --cab-yellow:      #FCCC0A;   /* Manhattan */
-  --subway-orange:   #FF6319;   /* Brooklyn  */
-  --transit-purple:  #B933AD;   /* Queens    */
-  --transit-green:   #00933C;   /* Bronx     */
-  --slate:           #9AA0AC;   /* Staten Island */
-  --transit-blue:    #4D7FE0;   /* EWR       */
 
-  --text-primary:    #F2F1ED;
-  --text-secondary:  #9AA0AC;
-
-  --font-display: 'Archivo', sans-serif;
-  --font-body:    'Inter', sans-serif;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  background: var(--asphalt);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-}
-
-/*  Header  */
-.rev-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding: 32px 40px 24px;
-  border-bottom: 1px solid var(--panel-border);
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.rev-eyebrow {
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.rev-title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 44px;
-  margin: 4px 0 0;
-  letter-spacing: -0.01em;
-}
-
-.rev-header-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.rev-ticker-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.rev-ticker-value {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 32px;
-  color: var(--cab-yellow);
-}
-
-/* Layout */
-.rev-main {
-  padding: 32px 40px 60px;
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-/*  KPI strip */
+/* ---- KPI Strip ---- */
 .kpi-strip {
-  display: grid;
+  display:               grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 32px;
+  gap:                   1rem;
+  margin-bottom:         1.5rem;
 }
 
+/* KPI card — visually matches .stat-card (dashboard.css) */
 .kpi-card {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 20px;
-  display: flex;
+  background:     linear-gradient(135deg, rgba(0, 212, 255, 0.07), rgba(59, 130, 246, 0.03));
+  border:         1px solid var(--border-default);
+  border-radius:  var(--radius-lg);
+  box-shadow:     var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding:        1.2rem;
+  display:        flex;
   flex-direction: column;
-  gap: 8px;
+  gap:            0.5rem;
+  transition:     border-color 0.22s, box-shadow 0.22s, transform 0.22s;
+  position:       relative;
+  overflow:       hidden;
 }
 
+/* Top gradient highlight stripe — matches .stat-card::before */
+.kpi-card::before {
+  content:    '';
+  position:   absolute;
+  top:        0;
+  left:       0;
+  right:      0;
+  height:     1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4), transparent);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
+  box-shadow:   var(--shadow-lg), 0 0 24px rgba(0, 212, 255, 0.10);
+  transform:    translateY(-2px);
+}
+
+/* KPI label — matches .stat-card-label */
 .kpi-label {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size:      0.7rem;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:          var(--text-secondary);
 }
 
+/* KPI value — matches .stat-card-value */
 .kpi-value {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 26px;
-  color: var(--text-primary);
+  font-size:      1.65rem;
+  font-weight:    800;
+  color:          var(--text-bright);
+  line-height:    1;
+  font-family:    var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /*  Chart grid  */
 .chart-grid {
-  display: grid;
+  display:               grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap:                   1rem;
+  margin-bottom:         1.5rem;
 }
 
+/* Chart panel*/
 .chart-panel {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
+  background:     linear-gradient(135deg, rgba(0, 212, 255, 0.06), rgba(59, 130, 246, 0.02));
+  border:         1px solid var(--border-default);
+  border-radius:  var(--radius-lg);
+  box-shadow:     var(--shadow-md);
+  padding:        1.25rem;
+  display:        flex;
   flex-direction: column;
+  transition:     border-color 0.22s;
+  position:       relative;
 }
 
+.chart-panel:hover {
+  border-color: var(--border-strong);
+}
+
+/* Chart panel header — matches .chart-card-header */
+.chart-panel-header {
+  margin-bottom: 1rem;
+}
+
+/* Panel title — matches .chart-card-title */
 .chart-panel-header h2 {
-  font-family: var(--font-display);
+  font-size:   0.9rem;
   font-weight: 700;
-  font-size: 17px;
-  margin: 0 0 4px;
+  color:       var(--text-primary);
+  font-family: var(--font-display);
+  margin:      0 0 0.2rem;
 }
 
+/* Caption / subtitle — matches .chart-card-subtitle */
 .chart-caption {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0 0 16px;
-  min-height: 18px;
+  font-size:  0.7rem;
+  color:      var(--text-secondary);
+  margin:     0;
+  min-height: 14px;
 }
 
+/* Canvas wrapper — matches .chart-container */
 .chart-canvas-wrap {
   position: relative;
-  height: 280px;
+  height:   280px;
+  flex:     1;
 }
 
-/*  Responsive  */
+/* ---- Responsive ---- */
 @media (max-width: 900px) {
-  .kpi-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .chart-grid {
-    grid-template-columns: 1fr;
-  }
-  .rev-main {
-    padding: 24px 20px 40px;
-  }
-  .rev-header {
-    padding: 24px 20px 20px;
-  }
-  .rev-title {
-    font-size: 32px;
-  }
+  .kpi-strip  { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .kpi-strip { grid-template-columns: 1fr; }
 }
