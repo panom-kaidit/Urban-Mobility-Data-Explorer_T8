@@ -8,6 +8,7 @@ async function initMobilityPage() {
     loadTopDropoffZones(),
     loadBoroughComparison(),
     loadAverageDistance(),
+    _loadFareRangeKpi(),
   ]);
 }
 
@@ -48,7 +49,7 @@ async function loadTopPickupZones() {
 }
 
 async function loadTopDropoffZones() {
-  var data = await fetchTopDropoffZones(10);   // returns null if 404
+  var data = await fetchTopDropoffZones(10);   // returns null on fetch error
 
   if (!data) {
     showChartComingSoon("mob-dropoff-container", "Top Dropoff Zones");
@@ -61,15 +62,20 @@ async function loadTopDropoffZones() {
     return;
   }
 
-  var container = document.getElementById("mob-dropoff-container");
-  if (container) container.innerHTML = '<canvas id="mob-dropoff-canvas"></canvas>';
+  try {
+    var container = document.getElementById("mob-dropoff-container");
+    if (container) container.innerHTML = '<canvas id="mob-dropoff-canvas"></canvas>';
 
-  createHorizontalBarChart(
-    document.getElementById("mob-dropoff-canvas"),
-    zones.map(function(z) { return z.zone_name || ("Zone " + z.zone_id); }),
-    zones.map(function(z) { return z.trip_count; }),
-    zones.map(function(z) { return boroughColor(z.borough); })
-  );
+    createHorizontalBarChart(
+      document.getElementById("mob-dropoff-canvas"),
+      zones.map(function(z) { return z.zone_name || ("Zone " + z.zone_id); }),
+      zones.map(function(z) { return z.trip_count; }),
+      zones.map(function(z) { return boroughColor(z.borough); })
+    );
+  } catch (err) {
+    showChartError("mob-dropoff-container", "Could not render Top Dropoff Zones.");
+    console.error("loadTopDropoffZones render:", err);
+  }
 }
 
 async function loadBoroughComparison() {
@@ -94,31 +100,34 @@ async function loadBoroughComparison() {
 }
 
 async function loadAverageDistance() {
-  var data = await fetchAverageDistanceByHour();   // returns null if 404
+  var data = await fetchAverageDistanceByHour();   // returns null on fetch error
 
   if (!data) {
     showChartComingSoon("mob-distance-container", "Average Distance by Hour");
-    // Populate the fare range KPI with fare distribution data as fallback
-    _loadFareRangeKpi();
     return;
   }
 
-  var hours = data.hours || [];
+  var hours = data.distances || [];
   if (hours.length === 0) {
     showChartComingSoon("mob-distance-container", "Average Distance by Hour");
     return;
   }
 
-  var container = document.getElementById("mob-distance-container");
-  if (container) container.innerHTML = '<canvas id="mob-distance-canvas"></canvas>';
+  try {
+    var container = document.getElementById("mob-distance-container");
+    if (container) container.innerHTML = '<canvas id="mob-distance-canvas"></canvas>';
 
-  createLineChart(
-    document.getElementById("mob-distance-canvas"),
-    hours.map(function(h) { return h.hour + ":00"; }),
-    hours.map(function(h) { return h.avg_distance; }),
-    "#00D4FF",
-    true
-  );
+    createLineChart(
+      document.getElementById("mob-distance-canvas"),
+      hours.map(function(h) { return h.hour + ":00"; }),
+      hours.map(function(h) { return h.avg_distance; }),
+      "#00D4FF",
+      true
+    );
+  } catch (err) {
+    showChartError("mob-distance-container", "Could not render Average Distance chart.");
+    console.error("loadAverageDistance render:", err);
+  }
 }
 
 async function _loadFareRangeKpi() {
