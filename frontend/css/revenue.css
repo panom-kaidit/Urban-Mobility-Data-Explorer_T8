@@ -1,0 +1,124 @@
+
+
+/* ---- KPI Strip ---- */
+.kpi-strip {
+  display:               grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:                   1rem;
+  margin-bottom:         1.5rem;
+}
+
+/* KPI card — visually matches .stat-card (dashboard.css) */
+.kpi-card {
+  background:     linear-gradient(135deg, rgba(0, 212, 255, 0.07), rgba(59, 130, 246, 0.03));
+  border:         1px solid var(--border-default);
+  border-radius:  var(--radius-lg);
+  box-shadow:     var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding:        1.2rem;
+  display:        flex;
+  flex-direction: column;
+  gap:            0.5rem;
+  transition:     border-color 0.22s, box-shadow 0.22s, transform 0.22s;
+  position:       relative;
+  overflow:       hidden;
+}
+
+/* Top gradient highlight stripe — matches .stat-card::before */
+.kpi-card::before {
+  content:    '';
+  position:   absolute;
+  top:        0;
+  left:       0;
+  right:      0;
+  height:     1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4), transparent);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
+  box-shadow:   var(--shadow-lg), 0 0 24px rgba(0, 212, 255, 0.10);
+  transform:    translateY(-2px);
+}
+
+/* KPI label — matches .stat-card-label */
+.kpi-label {
+  font-size:      0.7rem;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:          var(--text-secondary);
+}
+
+/* KPI value — matches .stat-card-value */
+.kpi-value {
+  font-size:      1.65rem;
+  font-weight:    800;
+  color:          var(--text-bright);
+  line-height:    1;
+  font-family:    var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/*  Chart grid  */
+.chart-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   1rem;
+  margin-bottom:         1.5rem;
+}
+
+/* Chart panel*/
+.chart-panel {
+  background:     linear-gradient(135deg, rgba(0, 212, 255, 0.06), rgba(59, 130, 246, 0.02));
+  border:         1px solid var(--border-default);
+  border-radius:  var(--radius-lg);
+  box-shadow:     var(--shadow-md);
+  padding:        1.25rem;
+  display:        flex;
+  flex-direction: column;
+  transition:     border-color 0.22s;
+  position:       relative;
+}
+
+.chart-panel:hover {
+  border-color: var(--border-strong);
+}
+
+/* Chart panel header — matches .chart-card-header */
+.chart-panel-header {
+  margin-bottom: 1rem;
+}
+
+/* Panel title — matches .chart-card-title */
+.chart-panel-header h2 {
+  font-size:   0.9rem;
+  font-weight: 700;
+  color:       var(--text-primary);
+  font-family: var(--font-display);
+  margin:      0 0 0.2rem;
+}
+
+/* Caption / subtitle — matches .chart-card-subtitle */
+.chart-caption {
+  font-size:  0.7rem;
+  color:      var(--text-secondary);
+  margin:     0;
+  min-height: 14px;
+}
+
+/* Canvas wrapper — matches .chart-container */
+.chart-canvas-wrap {
+  position: relative;
+  height:   280px;
+  flex:     1;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .kpi-strip  { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .kpi-strip { grid-template-columns: 1fr; }
+}
