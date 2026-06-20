@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.config.database import get_connection
 
@@ -31,45 +31,48 @@ def list_suspicious_records(
     """
     # Run a separate count query so the response count shows the full number of
     # suspicious records, not just the number returned on this page.
-    total_count = db.execute(
-        "SELECT COUNT(*) FROM suspicious_records"
-    ).fetchone()[0]
+    try:
+        total_count = db.execute(
+            "SELECT COUNT(*) FROM suspicious_records"
+        ).fetchone()[0]
 
-    rows = db.execute(
-        """
-        SELECT
-            record_id,
-            vendor_id,
-            pickup_datetime,
-            dropoff_datetime,
-            passenger_count,
-            trip_distance,
-            rate_code_id,
-            store_and_fwd_flag,
-            pu_location_id,
-            do_location_id,
-            payment_type,
-            fare_amount,
-            extra,
-            mta_tax,
-            tip_amount,
-            tolls_amount,
-            improvement_surcharge,
-            total_amount,
-            congestion_surcharge,
-            airport_fee,
-            removal_reason,
-            flagged_at
-        FROM suspicious_records
-        ORDER BY flagged_at DESC, record_id DESC
-        LIMIT ? OFFSET ?
-        """,
-        (limit, offset),
-    ).fetchall()
+        rows = db.execute(
+            """
+            SELECT
+                record_id,
+                vendor_id,
+                pickup_datetime,
+                dropoff_datetime,
+                passenger_count,
+                trip_distance,
+                rate_code_id,
+                store_and_fwd_flag,
+                pu_location_id,
+                do_location_id,
+                payment_type,
+                fare_amount,
+                extra,
+                mta_tax,
+                tip_amount,
+                tolls_amount,
+                improvement_surcharge,
+                total_amount,
+                congestion_surcharge,
+                airport_fee,
+                removal_reason,
+                flagged_at
+            FROM suspicious_records
+            ORDER BY flagged_at DESC, record_id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
 
-    return {
-        "items": [dict(row) for row in rows],
-        "limit": limit,
-        "offset": offset,
-        "count": total_count,
-    }
+        return {
+            "items": [dict(row) for row in rows],
+            "limit": limit,
+            "offset": offset,
+            "count": total_count,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Suspicious records query failed: {exc}")

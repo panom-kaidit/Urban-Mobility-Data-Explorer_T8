@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobility Analytics &mdash; Urban Mobility Explorer</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+
+        <div class="cards-grid" id="mobility-kpis">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Top Pickup Zone</span>
+              <div class="stat-card-icon icon-blue"><i class="fa-solid fa-city"></i></div>
+            </div>
+            <div class="stat-card-value" id="mob-top-zone">—</div>
+            <div class="stat-card-meta" id="mob-top-zone-meta">Loading…</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Top Borough</span>
+              <div class="stat-card-icon icon-yellow"><i class="fa-solid fa-location-dot"></i></div>
+            </div>
+            <div class="stat-card-value" id="mob-top-borough">—</div>
+            <div class="stat-card-meta">By pickup volume</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Zones Active</span>
+              <div class="stat-card-icon icon-green"><i class="fa-solid fa-map"></i></div>
+            </div>
+            <div class="stat-card-value" id="mob-zone-count">—</div>
+            <div class="stat-card-meta">Pickup zones tracked</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Fare Range</span>
+              <div class="stat-card-icon icon-purple"><i class="fa-solid fa-dollar-sign"></i></div>
+            </div>
+            <div class="stat-card-value" id="mob-busiest-range">—</div>
+            <div class="stat-card-meta">Most common fare range</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Top Pickup Zones</div>
+                <div class="chart-card-subtitle">Top 10 by trip volume &middot; Merge Sort</div>
+              </div>
+              <span class="badge badge-green">Live</span>
+            </div>
+            <div class="chart-container" id="mob-pickup-container">
+              <div class="chart-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Loading…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Top Dropoff Zones</div>
+                <div class="chart-card-subtitle">Top 10 dropoff destinations</div>
+              </div>
+              <span class="badge badge-yellow">Pending</span>
+            </div>
+            <div class="chart-container" id="mob-dropoff-container">
+              <div class="chart-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Checking endpoint…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Revenue by Borough</div>
+                <div class="chart-card-subtitle">Total revenue per pickup borough</div>
+              </div>
+              <span class="badge badge-green">Live</span>
+            </div>
+            <div class="chart-container" id="mob-borough-container">
+              <div class="chart-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Loading…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Average Distance by Pickup Hour</div>
+                <div class="chart-card-subtitle">How trip distance changes through the day</div>
+              </div>
+              <span class="badge badge-yellow">Pending</span>
+            </div>
+            <div class="chart-container" id="mob-distance-container">
+              <div class="chart-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Checking endpoint…</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="../components/navbar.js"></script>
+  <script src="../components/sidebar.js"></script>
+  <script src="../js/mobility.js"></script>
+
+</body>
+</html>

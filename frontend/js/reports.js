@@ -16,44 +16,63 @@ async function initReportsPage() {
   injectNavbar();
   setNavbarTitle("Reports");
 
-  _renderSummaryTable(null);
-  await _loadReportContext();
-  _renderSummaryTable(_reportContext.summary);
+  _renderSummaryTable(null);  // Show loading state immediately
+  _loadReportContext();       // Fire all independent loaders — don't await
 }
 
-async function _loadReportContext() {
+function _loadReportContext() {
   var badge = document.getElementById("reports-summary-badge");
   if (badge) {
     badge.textContent = "Loading...";
     badge.className = "badge badge-cyan";
   }
 
-  try {
-    var results = await Promise.all([
-      fetchSummary(),
-      fetchTopPickupZones(10).catch(function() { return null; }),
-      fetchTopDropoffZones(10).catch(function() { return null; }),
-      fetchRevenueByBorough().catch(function() { return null; }),
-      fetchRevenueTrends().catch(function() { return null; }),
-    ]);
-
-    _reportContext.summary = results[0];
-    _reportContext.topPickupZones = results[1] && results[1].zones ? results[1].zones : [];
-    _reportContext.topDropoffZones = results[2] && results[2].zones ? results[2].zones : [];
-    _reportContext.revenueByBorough = results[3] && results[3].boroughs ? results[3].boroughs : [];
-    _reportContext.revenueTrend = results[4] && results[4].trend ? results[4].trend : [];
-
-    if (badge) {
+  var pending = 5;
+  function _onDone() {
+    pending--;
+    if (pending <= 0 && badge) {
       badge.textContent = "Live Data";
       badge.className = "badge badge-green";
     }
-  } catch (err) {
-    console.error("Reports summary:", err);
-    if (badge) {
-      badge.textContent = "API Offline";
+  }
+  function _onError() {
+    pending--;
+    if (badge && pending <= 0) {
+      badge.textContent = "Partial Data";
       badge.className = "badge badge-yellow";
     }
   }
+
+  // Summary renders as soon as it arrives — usually fast due to backend cache.
+  fetchSummary().then(function(summary) {
+    _reportContext.summary = summary;
+    _renderSummaryTable(summary);
+    _onDone();
+  }).catch(function(err) {
+    console.error("Reports summary:", err);
+    if (badge) { badge.textContent = "API Offline"; badge.className = "badge badge-yellow"; }
+    _onError();
+  });
+
+  fetchTopPickupZones(10).then(function(data) {
+    _reportContext.topPickupZones = data && data.zones ? data.zones : [];
+    _onDone();
+  }).catch(function() { _onError(); });
+
+  fetchTopDropoffZones(10).then(function(data) {
+    _reportContext.topDropoffZones = data && data.zones ? data.zones : [];
+    _onDone();
+  }).catch(function() { _onError(); });
+
+  fetchRevenueByBorough().then(function(data) {
+    _reportContext.revenueByBorough = data && data.boroughs ? data.boroughs : [];
+    _onDone();
+  }).catch(function() { _onError(); });
+
+  fetchRevenueTrends().then(function(data) {
+    _reportContext.revenueTrend = data && data.trend ? data.trend : [];
+    _onDone();
+  }).catch(function() { _onError(); });
 }
 
 function _renderSummaryTable(summary) {
@@ -198,4 +217,14 @@ function closeReport() {
   if (viewer) viewer.style.display = "none";
 }
 
-document.addEventListener("DOMContentLoaded", initReportsPage);
+document.addEventListener("DOMContentLoaded", function() {
+  // Only run the full reports init (sidebar, navbar, all API calls) on the reports page.
+  // On other pages (e.g. dashboard) that also load reports.js, do a lightweight summary
+  // table population only — no sidebar override, no duplicate API calls.
+  if (document.getElementById("report-cards")) {
+    initReportsPage();
+  } else if (document.getElementById("reports-data-tbody")) {
+    _renderSummaryTable(null);
+    fetchSummary().then(function(s) { _renderSummaryTable(s); }).catch(function() {});
+  }
+});
