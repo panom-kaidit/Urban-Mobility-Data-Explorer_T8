@@ -37,27 +37,34 @@ def list_trips(
     max distance, max fare, and pickup date — all optional.
     """
     conditions = []
-    values = []
+    filter_values = [] 
 
     if borough:
         conditions.append("(pickup_borough = ? OR dropoff_borough = ?)")
-        values.extend([borough, borough])
+        filter_values.extend([borough, borough])
 
     if distance is not None:
         conditions.append("trip_distance <= ?")
-        values.append(distance)
+        filter_values.append(distance)
 
     if fare is not None:
         conditions.append("total_amount <= ?")
-        values.append(fare)
+        filter_values.append(fare)
 
     if date:
         conditions.append("date(pickup_datetime) = date(?)")
-        values.append(date)
+        filter_values.append(date)
 
     where_clause = ""
     if conditions:
         where_clause = "WHERE " + " AND ".join(conditions)
+
+    # Run a separate count query so the response count shows the full number of matching trips,
+    # not just the number returned in this page.
+    total_count = db.execute(
+        f"SELECT COUNT(*) FROM trips {where_clause}",
+        filter_values,
+    ).fetchone()[0]
 
     query = f"""
         SELECT
@@ -100,15 +107,14 @@ def list_trips(
         ORDER BY pickup_datetime DESC
         LIMIT ? OFFSET ?
     """
-    values.extend([limit, offset])
 
-    rows = db.execute(query, values).fetchall()
+    rows = db.execute(query, filter_values + [limit, offset]).fetchall()
 
     return {
         "items": [row_to_dict(row) for row in rows],
         "limit": limit,
         "offset": offset,
-        "count": len(rows),
+        "count": total_count,  
     }
 
 
