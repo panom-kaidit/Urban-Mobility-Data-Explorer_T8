@@ -55,28 +55,46 @@ async function fetchZone(zoneId) {
 
 // Analytics endpoints
 
-async function fetchTopPickupZones(topN = 10) {
-  return fetchJSON(`/analytics/top-pickup-zones?top_n=${topN}`);
+function _analyticsFilterParams(filters) {
+  const params = [];
+  if (filters.borough)  params.push(`borough=${encodeURIComponent(filters.borough)}`);
+  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
+  if (filters.fare)     params.push(`fare=${encodeURIComponent(filters.fare)}`);
+  if (filters.date)     params.push(`date=${encodeURIComponent(filters.date)}`);
+  return params;
 }
 
-async function fetchFareDistribution() {
-  return fetchJSON("/analytics/fare-distribution");
+async function fetchTopPickupZones(topN = 10, filters = {}) {
+  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
+  return fetchJSON(`/analytics/top-pickup-zones?${params.join("&")}`);
+}
+
+async function fetchFareDistribution(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/fare-distribution${qs}`);
 }
 
 async function fetchFareDistributionDetailed() {
   return fetchJSON("/analytics/fare-distribution-detailed");
 }
 
-async function fetchRevenueByBorough() {
-  return fetchJSON("/analytics/revenue-by-borough");
+async function fetchRevenueByBorough(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/revenue-by-borough${qs}`);
 }
 
-async function fetchRevenueTrends() {
-  return fetchJSON("/analytics/revenue-trends");
+async function fetchRevenueTrends(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/revenue-trends${qs}`);
 }
 
-async function fetchAverageFare() {
-  return fetchJSON("/analytics/average-fare");
+async function fetchAverageFare(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/average-fare${qs}`);
 }
 
 async function fetchSuspiciousRecords(limit = 100, offset = 0) {
@@ -85,17 +103,20 @@ async function fetchSuspiciousRecords(limit = 100, offset = 0) {
 
 // Analytics endpoints additional
 
-async function fetchTopDropoffZones(topN = 10) {
+async function fetchTopDropoffZones(topN = 10, filters = {}) {
+  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
   try {
-    return await fetchJSON(`/analytics/top-dropoff-zones?top_n=${topN}`);
+    return await fetchJSON(`/analytics/top-dropoff-zones?${params.join("&")}`);
   } catch (_) {
     return null;
   }
 }
 
-async function fetchAverageDistanceByHour() {
+async function fetchAverageDistanceByHour(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
   try {
-    return await fetchJSON("/analytics/average-distance");
+    return await fetchJSON(`/analytics/average-distance${qs}`);
   } catch (_) {
     return null;
   }
@@ -103,8 +124,10 @@ async function fetchAverageDistanceByHour() {
 
 // summary endpoint
 
-async function fetchSummary() {
-  const raw = await fetchJSON("/analytics/summary");
+async function fetchSummary(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  const raw = await fetchJSON(`/analytics/summary${qs}`);
   return {
     totalTrips:    raw.total_trips      || 0,
     totalRevenue:  raw.total_revenue    || 0,

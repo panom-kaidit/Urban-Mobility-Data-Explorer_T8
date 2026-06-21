@@ -6,13 +6,13 @@ async function initRevenuePage() {
   injectNavbar();
   setNavbarTitle("Revenue Analytics");
 
-  await Promise.allSettled([
-    loadRevenueByBorough(),
-    loadRevenueTrend(),
-    loadAverageFare(),
-    loadFareDistribution(),
-  ]);
+  await loadRevenueByBorough();
+
+  setTimeout(loadRevenueTrend, 50);
+  setTimeout(loadAverageFare, 100);
+  setTimeout(loadFareDistribution, 150);
 }
+
 
 async function loadRevenueByBorough() {
   var wrap = document.getElementById("wrap-revenue-by-borough");
@@ -139,7 +139,7 @@ async function loadFareDistribution() {
   if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data = await fetchFareDistributionDetailed();
+    var data = await fetchFareDistribution();
     var rows = data.distribution;
 
     var busiest = rows.reduce(function(max, r) {

@@ -3,6 +3,7 @@
 
 var _topZonesChart = null;
 var _fareDistChart = null;
+var _dashboardLoading = false;
 
 async function initDashboard() {
   injectSidebar("dashboard");
@@ -14,19 +15,21 @@ async function initDashboard() {
 }
 
 async function loadDashboardData(filters) {
+  filters = filters || {};
+  var hasFilters = Object.keys(filters).length > 0;
+  if (_dashboardLoading && !hasFilters) return;
+  _dashboardLoading = true;
   showCardsLoading();
   showChartLoading("zones-chart-container", "Loading top pickup zones…");
   showChartLoading("fare-chart-container",  "Loading fare distribution…");
 
-  // Fire all three independently — each section renders as its own data arrives.
-  _loadCards();
-  _loadTopZones();
-  _loadFareDist();
+  var _pending = Promise.allSettled([_loadCards(filters), _loadTopZones(filters), _loadFareDist(filters)]);
+  _pending.then(function() { _dashboardLoading = false; });
 }
 
-async function _loadCards() {
+async function _loadCards(filters) {
   try {
-    var stats = await fetchSummary();
+    var stats = await fetchSummary(filters);
     if (stats) renderCards(stats);
     else showCardsError();
   } catch (err) {
@@ -35,9 +38,9 @@ async function _loadCards() {
   }
 }
 
-async function _loadTopZones() {
+async function _loadTopZones(filters) {
   try {
-    var data = await fetchTopPickupZones(10);
+    var data = await fetchTopPickupZones(10, filters);
     if (data && data.zones && data.zones.length > 0) {
       _renderTopZones(data.zones);
     } else {
@@ -49,9 +52,9 @@ async function _loadTopZones() {
   }
 }
 
-async function _loadFareDist() {
+async function _loadFareDist(filters) {
   try {
-    var data = await fetchFareDistribution();
+    var data = await fetchFareDistribution(filters);
     if (data && data.distribution && data.distribution.length > 0) {
       _renderFareDist(data.distribution);
     } else {
