@@ -7,6 +7,8 @@ TIME_COLUMNS = ["tpep_pickup_datetime", "tpep_dropoff_datetime"]
 LOCATION_COLUMNS = ["PULocationID", "DOLocationID"]
 DISTANCE_COLUMN = "trip_distance"
 MONEY_COLUMNS = ["fare_amount", "total_amount"]
+EXPECTED_START_DATE = pd.Timestamp("2019-01-01")
+EXPECTED_END_DATE = pd.Timestamp("2019-02-01")
 
 
 @dataclass
@@ -46,6 +48,15 @@ class TripCleaner:
             clean_trips,
             bad_time_mask,
             "invalid_timestamp",
+            removed_parts,
+            report,
+        )
+
+        out_of_period_mask = self._outside_expected_period(clean_trips)
+        clean_trips = self._remove_rows(
+            clean_trips,
+            out_of_period_mask,
+            "outside_expected_period",
             removed_parts,
             report,
         )
@@ -95,6 +106,16 @@ class TripCleaner:
         pickup_time = trips["tpep_pickup_datetime"]
         dropoff_time = trips["tpep_dropoff_datetime"]
         return (dropoff_time <= pickup_time).fillna(False)
+
+    def _outside_expected_period(self, trips: pd.DataFrame) -> pd.Series:
+        pickup_time = trips["tpep_pickup_datetime"]
+        dropoff_time = trips["tpep_dropoff_datetime"]
+        return (
+            (pickup_time < EXPECTED_START_DATE)
+            | (pickup_time >= EXPECTED_END_DATE)
+            | (dropoff_time < EXPECTED_START_DATE)
+            | (dropoff_time >= EXPECTED_END_DATE)
+        ).fillna(False)
 
     def _remove_rows(
         self,

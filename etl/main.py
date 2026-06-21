@@ -182,5 +182,40 @@ def test_etl_layers() -> None:
     except Exception as exc:
         print(f" -> Error loading parquet data: {exc}\n")
 
+def run_full_etl() -> None:
+    """
+    Full ETL pipeline: schema init : locations :zone boundaries : trips.
+
+    Load order is required by FK constraints:
+      locations must exist before zone_boundaries (FK: location_id)
+      locations must exist before trips           (FK: pu/do_location_id)
+    """
+    from backend.config.database import init_db
+    from etl.load import load_locations, load_zone_boundaries, load_trips
+
+    print("=== Urban Mobility ETL — Full Run ===\n")
+
+    print("Step 1: Initialising database schema...")
+    init_db()
+    print(" -> Schema ready.\n")
+
+    print("Step 2: Loading taxi zone lookup data (265 locations)...")
+    load_locations()
+    print()
+
+    print("Step 3: Loading zone boundary polygons...")
+    load_zone_boundaries()
+    print()
+
+    print("Step 4: Running full trip ETL pipeline (7.7M rows)...")
+    load_trips()
+    print()
+
+    print("=== ETL Complete ===")
+
+
 if __name__ == "__main__":
-    test_etl_layers()
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        test_etl_layers()
+    else:
+        run_full_etl()

@@ -30,8 +30,12 @@ def load_locations():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # clear existing rows so this script can be re-run safely
+    # Temporarily disable FK enforcement so we can delete only the locations
+    # rows without cascade-deleting trips or zone_boundaries.
+    # Re-enabling FK checks after re-insert ensures the DB stays consistent.
+    conn.execute("PRAGMA foreign_keys = OFF")
     cursor.execute("DELETE FROM locations")
+    conn.execute("PRAGMA foreign_keys = ON")
 
     cursor.executemany(
         "INSERT INTO locations (location_id, borough, zone, service_zone) VALUES (?, ?, ?, ?)",
