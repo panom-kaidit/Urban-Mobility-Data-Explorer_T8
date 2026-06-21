@@ -10,10 +10,25 @@ INDEXES_FILE = BASE_DIR / "database" / "indexes.sql"
 
 def get_connection():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+
+    conn = sqlite3.connect(
+        DB_PATH,
+        check_same_thread=False
+    )
+
     conn.row_factory = sqlite3.Row
+
     conn.execute("PRAGMA foreign_keys = ON")
+
+    # Performance tuning
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+    conn.execute("PRAGMA cache_size=-100000")
+
     return conn
+
+
 
 
 def init_db():
