@@ -22,3 +22,21 @@ CREATE INDEX IF NOT EXISTS idx_trips_fare_amount ON trips (fare_amount);
 
 -- zone boundary lookups by location
 CREATE INDEX IF NOT EXISTS idx_zone_boundaries_location_id ON zone_boundaries (location_id);
+
+-- hour-of-day grouping for average-distance endpoint
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_hour ON trips (pickup_hour);
+
+-- top dropoff zones grouping
+CREATE INDEX IF NOT EXISTS idx_trips_dropoff_zone ON trips (dropoff_zone);
+CREATE INDEX IF NOT EXISTS idx_trips_dropoff_zone_summary
+ON trips (do_location_id, dropoff_zone, dropoff_borough);
+
+-- fare distribution range scans with revenue aggregation
+CREATE INDEX IF NOT EXISTS idx_trips_fare_distribution
+ON trips (fare_amount, total_amount);
+
+-- average-fare endpoint groups by borough + payment_type
+CREATE INDEX IF NOT EXISTS idx_trips_borough_payment ON trips (pickup_borough, payment_type);
+
+-- date-range filter in list_trips; also used by revenue-trends GROUP BY
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_date ON trips (SUBSTR(pickup_datetime, 1, 10));
