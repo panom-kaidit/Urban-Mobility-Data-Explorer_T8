@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zone Intelligence - Urban Mobility Explorer</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+
+        <!-- Zone cards -->
+        <div class="cards-grid" id="zone-kpi-cards">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Total Zones</span>
+              <div class="stat-card-icon icon-blue"><i class="fa-solid fa-map"></i></div>
+            </div>
+            <div class="stat-card-value">265</div>
+            <div class="stat-card-meta">NYC taxi zones</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Zone Boundaries</span>
+              <div class="stat-card-icon icon-green"><i class="fa-solid fa-location-dot"></i></div>
+            </div>
+            <div class="stat-card-value">260</div>
+            <div class="stat-card-meta">GeoJSON polygons loaded</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Boroughs</span>
+              <div class="stat-card-icon icon-yellow"><i class="fa-solid fa-city"></i></div>
+            </div>
+            <div class="stat-card-value">5+</div>
+            <div class="stat-card-meta">Manhattan, Brooklyn, Queens…</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Top Pickup Zone</span>
+              <div class="stat-card-icon icon-purple"><i class="fa-solid fa-trophy"></i></div>
+            </div>
+            <div class="stat-card-value" id="zone-top-name">—</div>
+            <div class="stat-card-meta" id="zone-top-trips">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Map + ranking side by side -->
+        <div class="zone-layout">
+
+          <div class="zone-map-card">
+            <div class="zone-map-header">
+              <h2>Zone Map — Top 10 Pickup Hotspots</h2>
+              <span class="badge">Leaflet + GeoJSON</span>
+            </div>
+            <div id="zone-map"></div>
+          </div>
+
+          <div class="zone-ranking-card">
+            <div class="zone-ranking-header">
+              <h2>Zone Ranking</h2>
+              <p class="section-subtitle">Sorted by pickup volume</p>
+            </div>
+            <div id="zone-ranking-list">
+              <div class="chart-placeholder" style="height:200px">
+                <div class="loading-spinner"></div>
+                <span>Loading rankings…</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Zone chart -->
+        <div class="charts-grid">
+          <div class="chart-card" style="grid-column:1/-1">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Top 15 Pickup Zones by Volume</div>
+                <div class="chart-card-subtitle">Trips per zone — ranked with Merge Sort algorithm</div>
+              </div>
+              <span class="badge">Merge Sort</span>
+            </div>
+            <div class="chart-container" style="height:360px" id="zone-bar-container">
+              <div class="chart-placeholder">
+                <div class="loading-spinner"></div>
+                <span>Loading chart…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- .content-inner -->
+    </main>
+
+  </div><!-- .app-wrapper -->
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/charts.js"></script>
+  <script defer src="../components/navbar.js"></script>
+  <script defer src="../components/sidebar.js"></script>
+  <script defer src="../js/zones.js"></script>
+
+</body>
+</html>

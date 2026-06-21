@@ -1,0 +1,53 @@
+from etl.extract import LookupLoader
+from etl.utils.config import LOOKUP_FILE
+from backend.config.database import get_connection
+
+
+def load_locations_data():
+    """Load taxi zone lookup data and rename columns to match the locations table."""
+    loader = LookupLoader(LOOKUP_FILE)
+    lookup_data = loader.load()
+
+    locations = lookup_data.rename(columns={
+        "LocationID": "location_id",
+        "Borough": "borough",
+        "Zone": "zone",
+    })
+
+    # LocationID 264/265 use the literal string "N/A" for borough/zone/service_zone.
+    # pandas reads "N/A" as NaN by default - restore it as a real category here.
+    locations[["borough", "zone", "service_zone"]] = (
+        locations[["borough", "zone", "service_zone"]].fillna("N/A")
+    )
+
+    return locations[["location_id", "borough", "zone", "service_zone"]]
+
+
+def load_locations():
+    """Load the locations dimension table from taxi_zone_lookup.csv."""
+    locations = load_locations_data()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Temporarily disable FK enforcement so we can delete only the locations
+    # rows without cascade-deleting trips or zone_boundaries.
+    # Re-enabling FK checks after re-insert ensures the DB stays consistent.
+    conn.execute("PRAGMA foreign_keys = OFF")
+    cursor.execute("DELETE FROM locations")
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    cursor.executemany(
+        "INSERT INTO locations (location_id, borough, zone, service_zone) VALUES (?, ?, ?, ?)",
+        locations.itertuples(index=False, name=None)
+    )
+
+    conn.commit()
+    row_count = cursor.execute("SELECT COUNT(*) FROM locations").fetchone()[0]
+    conn.close()
+
+    print(f"Loaded {row_count} locations.")
+
+
+if __name__ == "__main__":
+    load_locations()

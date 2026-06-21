@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard &mdash; Urban Mobility Explorer</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js must load before api.js (which sets global defaults) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+
+        <!-- KPI cards (rendered by cards.js) -->
+        <div class="cards-grid" id="stats-cards"></div>
+
+        <!-- Filters panel (rendered by filters.js) -->
+        <div id="filters-container"></div>
+
+        <!-- Summary data table -->
+        <div class="summary-table-panel" id="reports-summary-table">
+          <div class="summary-table-panel-header">
+            <div class="summary-table-panel-title">Dataset Overview</div>
+            <span id="reports-summary-badge" class="badge">Loading…</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="reports-data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="reports-data-tbody">
+                <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted)">
+                  <div class="loading-spinner" style="margin:0 auto 0.5rem"></div>
+                  Loading summary…
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        </div><!-- .charts-grid -->
+
+      </div><!-- .content-inner -->
+    </main>
+
+  </div><!-- .app-wrapper -->
+
+  <!-- defer keeps document order so Chart.js globals are set before page scripts run -->
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/charts.js"></script>
+  <script defer src="../components/cards.js"></script>
+  <script defer src="../components/navbar.js"></script>
+  <script defer src="../components/sidebar.js"></script>
+  <script defer src="../js/filters.js"></script>
+  <script defer src="../js/dashboard.js"></script>
+  <script defer src="../js/reports.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Quality - Urban Mobility Explorer</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+
+        <div class="dq-stats-grid" id="dq-stats">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Suspicious Records</span>
+              <div class="stat-card-icon" style="background:rgba(255,90,122,0.12);color:var(--accent-red);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="stat-card-value" id="dq-total-count" style="color:var(--accent-red)">—</div>
+            <div class="stat-card-meta">Removed during ETL cleaning</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Clean Trips</span>
+              <div class="stat-card-icon icon-green"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+            <div class="stat-card-value" style="color:var(--accent-green)">7.68M</div>
+            <div class="stat-card-meta">Passed all validation rules</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Rejection Rate</span>
+              <div class="stat-card-icon icon-yellow"><i class="fa-solid fa-chart-bar"></i></div>
+            </div>
+            <div class="stat-card-value" id="dq-reject-rate" style="color:var(--accent-yellow)">—</div>
+            <div class="stat-card-meta">Of total raw records</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <span class="stat-card-label">Top Removal Reason</span>
+              <div class="stat-card-icon icon-purple"><i class="fa-solid fa-magnifying-glass"></i></div>
+            </div>
+            <div class="stat-card-value" id="dq-top-reason" style="font-size:0.95rem;line-height:1.2">—</div>
+            <div class="stat-card-meta">Most common removal cause</div>
+          </div>
+        </div>
+
+        <div class="charts-grid" style="margin-bottom:1.5rem">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Removal Reason Breakdown</div>
+                <div class="chart-card-subtitle">Why records were flagged during ETL</div>
+              </div>
+            </div>
+            <div class="chart-container" id="dq-reason-chart">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Data Quality Ratio</div>
+                <div class="chart-card-subtitle">Clean vs. removed records</div>
+              </div>
+            </div>
+            <div class="chart-container" id="dq-quality-chart">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="records-panel">
+          <div class="records-panel-header">
+            <div class="records-panel-title"><i class="fa-solid fa-triangle-exclamation" style="margin-right:0.4rem;color:var(--accent-red)"></i>Suspicious Records</div>
+            <div style="display:flex;align-items:center;gap:0.65rem">
+              <span id="dq-showing-label" style="font-size:0.73rem;color:var(--text-muted)"></span>
+              <button class="btn btn-ghost btn-sm" id="dq-prev-btn" disabled><i class="fa-solid fa-chevron-left"></i></button>
+              <button class="btn btn-ghost btn-sm" id="dq-next-btn"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+          <div class="records-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Record ID</th>
+                  <th>Pickup DateTime</th>
+                  <th>Dropoff DateTime</th>
+                  <th>Distance</th>
+                  <th>Fare</th>
+                  <th>Removal Reason</th>
+                </tr>
+              </thead>
+              <tbody id="dq-records-tbody">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">
+                    <div class="loading-spinner" style="margin:0 auto 0.5rem"></div>
+                    Loading records…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/charts.js"></script>
+  <script defer src="../components/navbar.js"></script>
+  <script defer src="../components/sidebar.js"></script>
+  <script defer src="../js/suspicious.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports - Urban Mobility Explorer</title>
+
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+        <!-- Report cards -->
+        <div class="report-grid" id="report-cards">
+          <div class="report-card" data-report="executive">
+            <span class="report-card-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+            <div class="report-card-title">Executive Summary</div>
+            <div class="report-card-desc">
+              Live overview of the January 2019 NYC Yellow Taxi dataset: loaded trips,
+              revenue, top zones, and quality metrics.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('executive')">View Report</button>
+            </div>
+          </div>
+
+          <div class="report-card" data-report="revenue">
+            <span class="report-card-icon"><i class="fa-solid fa-dollar-sign"></i></span>
+            <div class="report-card-title">Revenue Analysis</div>
+            <div class="report-card-desc">
+              Full revenue breakdown by borough, payment method, and time series.
+              Total revenue, per-trip averages, and trend analysis.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('revenue')">View Report</button>
+            </div>
+          </div>
+
+          <div class="report-card" data-report="zones">
+            <span class="report-card-icon"><i class="fa-solid fa-map"></i></span>
+            <div class="report-card-title">Zone Coverage Report</div>
+            <div class="report-card-desc">
+              Demand analysis for all NYC taxi zones. Identifies high-demand hotspots,
+              underserved zones, and borough-level coverage.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('zones')">View Report</button>
+            </div>
+          </div>
+
+          <div class="report-card" data-report="quality">
+            <span class="report-card-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <div class="report-card-title">Data Quality Report</div>
+            <div class="report-card-desc">
+              ETL pipeline validation report: removed records, date anomalies,
+              and outlier detection statistics from the current database.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('quality')">View Report</button>
+            </div>
+          </div>
+
+          <div class="report-card" data-report="mobility">
+            <span class="report-card-icon"><i class="fa-solid fa-taxi"></i></span>
+            <div class="report-card-title">Mobility Patterns</div>
+            <div class="report-card-desc">
+              Trip flow analysis across boroughs and zones. Pickup and dropoff demand patterns
+              and fare structure by route type.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-green">Ready</span>
+              <button class="btn btn-primary btn-sm" onclick="viewReport('mobility')">View Report</button>
+            </div>
+          </div>
+
+          <div class="report-card" data-report="performance">
+            <span class="report-card-icon"><i class="fa-solid fa-bolt"></i></span>
+            <div class="report-card-title">System Performance</div>
+            <div class="report-card-desc">
+              Backend API performance metrics, ETL timing, and database statistics.
+              Architecture health audit.
+            </div>
+            <div class="report-card-meta">
+              <span class="badge badge-yellow">Planned</span>
+              <button class="btn btn-ghost btn-sm" disabled>Coming Soon</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline report viewer -->
+        <div id="report-viewer" style="display:none">
+          <div class="records-panel">
+            <div class="records-panel-header">
+              <div class="records-panel-title" id="report-viewer-title">Report</div>
+              <button class="btn btn-ghost btn-sm" onclick="closeReport()"><i class="fa-solid fa-xmark"></i> Close</button>
+            </div>
+            <div id="report-viewer-body" style="padding:1.5rem">
+              <!-- populated by viewReport() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary data table -->
+        <div class="summary-table-panel" id="reports-summary-table">
+          <div class="summary-table-panel-header">
+            <div class="summary-table-panel-title">Dataset Overview</div>
+            <span id="reports-summary-badge" class="badge">Loading...</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="reports-data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Value</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="reports-data-tbody">
+                <tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted)">
+                  <div class="loading-spinner" style="margin:0 auto 0.5rem"></div>
+                  Loading summary...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- .content-inner -->
+    </main>
+
+  </div><!-- .app-wrapper -->
+
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/charts.js"></script>
+  <script defer src="../components/navbar.js"></script>
+  <script defer src="../components/sidebar.js"></script>
+  <script defer src="../js/reports.js"></script>
+
+</body>
+</html>
