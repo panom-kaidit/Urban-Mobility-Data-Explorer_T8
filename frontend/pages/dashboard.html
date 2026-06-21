@@ -59,15 +59,15 @@
 
   </div><!-- .app-wrapper -->
 
-  <!-- Load order: Chart.js already loaded above, then api, charts, components, page -->
-  <script src="../js/api.js"></script>
-  <script src="../js/charts.js"></script>
-  <script src="../components/cards.js"></script>
-  <script src="../components/navbar.js"></script>
-  <script src="../components/sidebar.js"></script>
-  <script src="../js/filters.js"></script>
-  <script src="../js/dashboard.js"></script>
-  <script src="../js/reports.js"></script>
+  <!-- defer keeps document order so Chart.js globals are set before page scripts run -->
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/charts.js"></script>
+  <script defer src="../components/cards.js"></script>
+  <script defer src="../components/navbar.js"></script>
+  <script defer src="../components/sidebar.js"></script>
+  <script defer src="../js/filters.js"></script>
+  <script defer src="../js/dashboard.js"></script>
+  <script defer src="../js/reports.js"></script>
 
 </body>
 </html>

@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -37,7 +38,7 @@ def list_trips(
     max distance, max fare, and pickup date — all optional.
     """
     conditions = []
-    filter_values = [] 
+    filter_values = []
 
     if borough:
         conditions.append("(pickup_borough = ? OR dropoff_borough = ?)")
@@ -52,70 +53,81 @@ def list_trips(
         filter_values.append(fare)
 
     if date:
-        conditions.append("date(pickup_datetime) = date(?)")
-        filter_values.append(date)
+        # Use a range comparison so SQLite can use idx_trips_pickup_datetime.
+        # Calling date() on the column side would prevent index usage.
+        try:
+            next_day = (
+                datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)
+            ).strftime("%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        conditions.append("pickup_datetime >= ? AND pickup_datetime < ?")
+        filter_values.extend([date, next_day])
 
     where_clause = ""
     if conditions:
         where_clause = "WHERE " + " AND ".join(conditions)
 
-    # Run a separate count query so the response count shows the full number of matching trips,
-    # not just the number returned in this page.
-    total_count = db.execute(
-        f"SELECT COUNT(*) FROM trips {where_clause}",
-        filter_values,
-    ).fetchone()[0]
+    try:
+        total_count = db.execute(
+            f"SELECT COUNT(*) FROM trips {where_clause}",
+            filter_values,
+        ).fetchone()[0]
 
-    query = f"""
-        SELECT
-            trip_id,
-            vendor_id,
-            pickup_datetime,
-            dropoff_datetime,
-            passenger_count,
-            trip_distance,
-            rate_code_id,
-            store_and_fwd_flag,
-            pu_location_id,
-            do_location_id,
-            payment_type,
-            fare_amount,
-            extra,
-            mta_tax,
-            tip_amount,
-            tolls_amount,
-            improvement_surcharge,
-            total_amount,
-            congestion_surcharge,
-            airport_fee,
-            is_outlier,
-            outlier_reasons,
-            pickup_borough,
-            pickup_zone,
-            pickup_service_zone,
-            dropoff_borough,
-            dropoff_zone,
-            dropoff_service_zone,
-            trip_duration_minutes,
-            average_speed_mph,
-            fare_per_mile,
-            pickup_hour,
-            pickup_day_of_week,
-            tip_percentage
-        FROM trips
-        {where_clause}
-        ORDER BY pickup_datetime DESC
-        LIMIT ? OFFSET ?
-    """
+        query = f"""
+            SELECT
+                trip_id,
+                vendor_id,
+                pickup_datetime,
+                dropoff_datetime,
+                passenger_count,
+                trip_distance,
+                rate_code_id,
+                store_and_fwd_flag,
+                pu_location_id,
+                do_location_id,
+                payment_type,
+                fare_amount,
+                extra,
+                mta_tax,
+                tip_amount,
+                tolls_amount,
+                improvement_surcharge,
+                total_amount,
+                congestion_surcharge,
+                airport_fee,
+                is_outlier,
+                outlier_reasons,
+                pickup_borough,
+                pickup_zone,
+                pickup_service_zone,
+                dropoff_borough,
+                dropoff_zone,
+                dropoff_service_zone,
+                trip_duration_minutes,
+                average_speed_mph,
+                fare_per_mile,
+                pickup_hour,
+                pickup_day_of_week,
+                tip_percentage
+            FROM trips
+            {where_clause}
+            ORDER BY pickup_datetime DESC
+            LIMIT ? OFFSET ?
+        """
 
-    rows = db.execute(query, filter_values + [limit, offset]).fetchall()
+        rows = db.execute(query, filter_values + [limit, offset]).fetchall()
 
-    return {
-        "items": [row_to_dict(row) for row in rows],
-        "limit": limit,
-        "offset": offset,
-        "count": total_count,  
-    }
+        return {
+            "items": [row_to_dict(row) for row in rows],
+            "limit": limit,
+            "offset": offset,
+            "count": total_count,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Trips query failed: {exc}")
 
 
 @router.get("/{trip_id}")
@@ -127,50 +139,55 @@ def get_trip(
     if trip_id < 1:
         raise HTTPException(status_code=400, detail="Trip ID must be a positive integer")
 
-    row = db.execute(
-        """
-        SELECT
-            trip_id,
-            vendor_id,
-            pickup_datetime,
-            dropoff_datetime,
-            passenger_count,
-            trip_distance,
-            rate_code_id,
-            store_and_fwd_flag,
-            pu_location_id,
-            do_location_id,
-            payment_type,
-            fare_amount,
-            extra,
-            mta_tax,
-            tip_amount,
-            tolls_amount,
-            improvement_surcharge,
-            total_amount,
-            congestion_surcharge,
-            airport_fee,
-            is_outlier,
-            outlier_reasons,
-            pickup_borough,
-            pickup_zone,
-            pickup_service_zone,
-            dropoff_borough,
-            dropoff_zone,
-            dropoff_service_zone,
-            trip_duration_minutes,
-            average_speed_mph,
-            fare_per_mile,
-            pickup_hour,
-            pickup_day_of_week,
-            tip_percentage
-        FROM trips
-        WHERE trip_id = ?
-        """,
-        (trip_id,),
-    ).fetchone()
+    try:
+        row = db.execute(
+            """
+            SELECT
+                trip_id,
+                vendor_id,
+                pickup_datetime,
+                dropoff_datetime,
+                passenger_count,
+                trip_distance,
+                rate_code_id,
+                store_and_fwd_flag,
+                pu_location_id,
+                do_location_id,
+                payment_type,
+                fare_amount,
+                extra,
+                mta_tax,
+                tip_amount,
+                tolls_amount,
+                improvement_surcharge,
+                total_amount,
+                congestion_surcharge,
+                airport_fee,
+                is_outlier,
+                outlier_reasons,
+                pickup_borough,
+                pickup_zone,
+                pickup_service_zone,
+                dropoff_borough,
+                dropoff_zone,
+                dropoff_service_zone,
+                trip_duration_minutes,
+                average_speed_mph,
+                fare_per_mile,
+                pickup_hour,
+                pickup_day_of_week,
+                tip_percentage
+            FROM trips
+            WHERE trip_id = ?
+            """,
+            (trip_id,),
+        ).fetchone()
 
-    if row is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
+        if row is None:
+            raise HTTPException(status_code=404, detail="Trip not found")
 
-    return row_to_dict(row)
+        return row_to_dict(row)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Trip lookup failed: {exc}")

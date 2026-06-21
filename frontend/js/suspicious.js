@@ -5,6 +5,7 @@ var _dqPage    = 0;
 var _dqLimit   = 50;
 var _dqTotal   = 0;
 var _dqReasons = {};
+var _cleanTripCount = 0;
 
 async function initDataQualityPage() {
   injectSidebar("data-quality");
@@ -19,6 +20,12 @@ async function initDataQualityPage() {
     if (_dqPage < maxPage) { _dqPage++; _loadPage(); }
   });
 
+  // Pre-fetch summary to get the live clean trip count for KPIs and charts.
+  try {
+    var summary = await fetchSummary();
+    _cleanTripCount = summary.totalTrips || 0;
+  } catch (_) {}
+
   await _loadPage();
 }
 
@@ -29,15 +36,16 @@ async function _loadPage() {
     var data  = await fetchSuspiciousRecords(_dqLimit, _dqPage * _dqLimit);
     var items = data.items || [];
 
-    _dqTotal = _estimateTotal(data, items);
+    // data.count is the total count from SELECT COUNT(*), not just this page.
+    _dqTotal = data.count || 0;
 
-    // Count reasons
+    // Accumulate reason counts across pages for the bar chart.
     items.forEach(function(r) {
       var reason = r.removal_reason || "unknown";
       _dqReasons[reason] = (_dqReasons[reason] || 0) + 1;
     });
 
-    _updateKpis(items);
+    _updateKpis();
     _renderTable(items);
     _updateLabel();
     _setNavBtns(_dqPage > 0, items.length === _dqLimit);
@@ -53,21 +61,13 @@ async function _loadPage() {
   }
 }
 
-function _estimateTotal(data, items) {
-  // Backend returns count = len(rows) not total. We estimate from offset + rows.
-  if (data.count < _dqLimit) {
-    return _dqPage * _dqLimit + data.count;
-  }
-  // If we got a full page, estimate total as 13,677 (known from ETL)
-  return 13677;
-}
-
-function _updateKpis(items) {
-  var known = 13677;
+function _updateKpis() {
   var el = document.getElementById("dq-total-count");
-  if (el) el.textContent = formatNumber(known);
+  if (el) el.textContent = formatNumber(_dqTotal);
 
-  var rate = ((known / (known + 7682940)) * 100).toFixed(2);
+  var rate = (_cleanTripCount > 0 || _dqTotal > 0)
+    ? ((_dqTotal / (_dqTotal + _cleanTripCount)) * 100).toFixed(2)
+    : "0.00";
   var ratEl = document.getElementById("dq-reject-rate");
   if (ratEl) ratEl.textContent = rate + "%";
 
@@ -118,7 +118,6 @@ function _reasonBadge(reason) {
 }
 
 function _renderCharts() {
-  // Collect reason counts from current _dqReasons
   var labels = Object.keys(_dqReasons);
   var values = labels.map(function(k) { return _dqReasons[k]; });
   var colors = ["#FF9F43", "#FF5A7A", "#8B5CF6", "#00D4FF", "#10F0A0", "#3B82F6"];
@@ -135,14 +134,17 @@ function _renderCharts() {
     );
   }
 
-  // Doughnut: clean vs flagged
+  // Doughnut: clean vs flagged — uses live counts from the API
   var qc = document.getElementById("dq-quality-chart");
   if (qc) {
     qc.innerHTML = '<canvas id="dq-quality-canvas"></canvas>';
     createDoughnutChart(
       document.getElementById("dq-quality-canvas"),
-      ["Clean Trips (7.68M)", "Flagged (13,677)"],
-      [7682940, 13677],
+      [
+        "Clean Trips (" + formatCompact(_cleanTripCount) + ")",
+        "Suspicious (" + formatCompact(_dqTotal) + ")",
+      ],
+      [_cleanTripCount, _dqTotal],
       ["#10F0A0", "#FF5A7A"]
     );
   }
