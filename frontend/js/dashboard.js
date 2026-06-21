@@ -19,51 +19,37 @@ async function loadDashboardData(filters) {
   var hasFilters = Object.keys(filters).length > 0;
   if (_dashboardLoading && !hasFilters) return;
   _dashboardLoading = true;
+
   showCardsLoading();
   showChartLoading("zones-chart-container", "Loading top pickup zones…");
   showChartLoading("fare-chart-container",  "Loading fare distribution…");
 
-  var _pending = Promise.allSettled([_loadCards(filters), _loadTopZones(filters), _loadFareDist(filters)]);
-  _pending.then(function() { _dashboardLoading = false; });
-}
+  var results = await Promise.allSettled([
+    fetchSummary(filters),
+    fetchTopPickupZones(10, filters),
+    fetchFareDistribution(filters),
+  ]);
 
-async function _loadCards(filters) {
-  try {
-    var stats = await fetchSummary(filters);
-    if (stats) renderCards(stats);
-    else showCardsError();
-  } catch (err) {
-    showCardsError();
-    console.error("Dashboard cards:", err);
-  }
-}
+  var summary  = results[0].status === "fulfilled" ? results[0].value : null;
+  var zones    = results[1].status === "fulfilled" ? results[1].value : null;
+  var fareDist = results[2].status === "fulfilled" ? results[2].value : null;
 
-async function _loadTopZones(filters) {
-  try {
-    var data = await fetchTopPickupZones(10, filters);
-    if (data && data.zones && data.zones.length > 0) {
-      _renderTopZones(data.zones);
-    } else {
-      showChartError("zones-chart-container", "Could not load pickup zones. Is the backend running?");
-    }
-  } catch (err) {
+  if (summary) renderCards(summary);
+  else showCardsError();
+
+  if (zones && zones.zones && zones.zones.length > 0) {
+    _renderTopZones(zones.zones);
+  } else {
     showChartError("zones-chart-container", "Could not load pickup zones. Is the backend running?");
-    console.error("Dashboard zones:", err);
   }
-}
 
-async function _loadFareDist(filters) {
-  try {
-    var data = await fetchFareDistribution(filters);
-    if (data && data.distribution && data.distribution.length > 0) {
-      _renderFareDist(data.distribution);
-    } else {
-      showChartError("fare-chart-container", "Could not load fare data. Is the backend running?");
-    }
-  } catch (err) {
+  if (fareDist && fareDist.distribution && fareDist.distribution.length > 0) {
+    _renderFareDist(fareDist.distribution);
+  } else {
     showChartError("fare-chart-container", "Could not load fare data. Is the backend running?");
-    console.error("Dashboard fares:", err);
   }
+
+  _dashboardLoading = false;
 }
 
 function _renderTopZones(zones) {
