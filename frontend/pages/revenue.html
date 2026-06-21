@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revenue &mdash; Urban Mobility Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/dashboard.css" />
+  <link rel="stylesheet" href="../css/revenue.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper" id="app-wrapper">
+
+    <main class="main-content" id="main-content">
+      <div class="content-inner">
+
+        <!-- KPI strip -->
+        <section class="kpi-strip" aria-label="Key revenue metrics">
+          <div class="kpi-card">
+            <span class="kpi-label">Total Revenue</span>
+            <span class="kpi-value" id="kpi-total-revenue">—</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Total Trips</span>
+            <span class="kpi-value" id="kpi-total-trips">—</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Average Fare</span>
+            <span class="kpi-value" id="kpi-avg-fare">—</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Top Borough</span>
+            <span class="kpi-value" id="kpi-top-borough">—</span>
+          </div>
+        </section>
+
+        <!-- Charts grid -->
+        <section class="chart-grid">
+
+          <article class="chart-panel">
+            <div class="chart-panel-header">
+              <h2>Revenue by Borough</h2>
+              <p class="chart-caption" id="caption-borough">Loading…</p>
+            </div>
+            <div class="chart-canvas-wrap" id="wrap-revenue-by-borough">
+              <canvas id="chart-revenue-by-borough"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="chart-panel-header">
+              <h2>Revenue Trend</h2>
+              <p class="chart-caption" id="caption-trend">Loading…</p>
+            </div>
+            <div class="chart-canvas-wrap" id="wrap-revenue-trend">
+              <canvas id="chart-revenue-trend"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="chart-panel-header">
+              <h2>Average Fare by Payment Method</h2>
+              <p class="chart-caption" id="caption-fare">Loading…</p>
+            </div>
+            <div class="chart-canvas-wrap" id="wrap-average-fare">
+              <canvas id="chart-average-fare"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="chart-panel-header">
+              <h2>Fare Distribution</h2>
+              <p class="chart-caption" id="caption-distribution">Loading…</p>
+            </div>
+            <div class="chart-canvas-wrap" id="wrap-fare-distribution">
+              <canvas id="chart-fare-distribution"></canvas>
+            </div>
+          </article>
+
+        </section>
+
+      </div><!-- .content-inner -->
+    </main>
+
+  </div><!-- .app-wrapper -->
+
+  <script src="../js/api.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="../components/navbar.js"></script>
+  <script src="../components/sidebar.js"></script>
+  <script src="../js/revenue.js"></script>
+
+</body>
+</html>
