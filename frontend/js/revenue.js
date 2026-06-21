@@ -139,7 +139,7 @@ async function loadFareDistribution() {
   if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data = await fetchFareDistributionDetailed();
+    var data = await fetchFareDistribution();
     var rows = data.distribution;
 
     var busiest = rows.reduce(function(max, r) {
