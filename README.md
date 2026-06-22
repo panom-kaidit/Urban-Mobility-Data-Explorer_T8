@@ -93,8 +93,6 @@ The local environment requires:
 - At least 5 GB of free disk space for the Parquet input, populated database, temporary SQLite WAL files, and indexes
 - A stable internet connection for downloading the source dataset and loading CDN-hosted frontend libraries/map tiles
 
-The ETL is CPU-, disk-, and memory-intensive. Runtime depends heavily on the machine and storage device. An SSD is strongly recommended.
-
 ## Quick start
 
 The commands below assume the repository root as the working directory unless a step explicitly changes directories.
