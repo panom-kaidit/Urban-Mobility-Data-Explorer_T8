@@ -7,16 +7,7 @@ Time complexity  (database path):  O(z log z)  where z = number of zones.
 Space complexity: O(z).
 """
 
-import logging
-import time
-
 from backend.algorithms.merge_sort import merge_sort
-
-logger = logging.getLogger(__name__)
-
-# Cache results in memory by top_n.
-# The data is static, so once we compute a top-N result we can reuse it.
-_zones_cache: dict = {}
 
 
 def get_value(row, column_name):
@@ -96,25 +87,20 @@ def find_top_pickup_zones(trip_rows, top_n=10):
 
 def fetch_zone_counts_from_db(database_connection):
     """
-    Uses SQL GROUP BY to count trips per pickup zone.
-
-    Returns rows (one per zone that has at least one trip) instead of
-    fetching all 7.6 M trip rows and counting in Python.  The merge_sort
-    call in find_top_pickup_zones_from_database still does the ranking, so
-    the custom algorithm is still demonstrated - SQL only handles counting.
+    Reads the pickup-zone counts precomputed by the ETL instead of scanning
+    and grouping the trips table. The custom merge sort still ranks the
+    resulting small set of zone rows.
 
     Each row has:  zone_id, zone_name, borough, trip_count
     """
     return database_connection.execute(
         """
         SELECT
-            pu_location_id  AS zone_id,
-            pickup_zone     AS zone_name,
-            pickup_borough  AS borough,
-            COUNT(*)        AS trip_count
-        FROM  trips
-        WHERE pu_location_id IS NOT NULL
-        GROUP BY pu_location_id
+            zone_id,
+            zone_name,
+            borough,
+            trip_count
+        FROM analytics_pickup_zones
         """
     ).fetchall()
 
@@ -123,44 +109,13 @@ def find_top_pickup_zones_from_database(database_connection, top_n=10):
     """
     Returns the top-N pickup zones by trip count.
 
-    Steps (simple):
-    1. Look in a cache. If we already computed this top_n, return it.
-    2. Run a SQL query that counts trips for each pickup zone (the database does the counting).
-    3. Use the custom merge_sort to sort the zones by their trip counts in Python.
-    4. Take the top N results, save them in the cache, and return them.
+    Reads the precomputed pickup-zone aggregate, ranks it with the custom
+    merge sort, and returns the requested number of zones.
     """
-    # Step 1: return cached result if available
-    if top_n in _zones_cache:
-        logger.info("top-pickup-zones: returning cached result for top_n=%d", top_n)
-        return _zones_cache[top_n]
-
-    total_start = time.time()
-
-    # Step 2 
-    fetch_start = time.time()
     rows = fetch_zone_counts_from_db(database_connection)
     zone_list = [dict(row) for row in rows]
-    fetch_time = time.time() - fetch_start
-    logger.info(
-        "top-pickup-zones: DB GROUP BY fetched %d zones in %.2fs",
-        len(zone_list), fetch_time,
-    )
 
     # Step 3 — rank with custom merge sort (algorithm requirement)
-    sort_start = time.time()
     sorted_zones = merge_sort(zone_list, "trip_count", descending=True)
-    sort_time = time.time() - sort_start
-    logger.info(
-        "top-pickup-zones: merge_sort of %d zones took %.4fs",
-        len(sorted_zones), sort_time,
-    )
 
-    # Step 4 — slice and cache
-    result = sorted_zones[:top_n]
-    _zones_cache[top_n] = result
-
-    logger.info(
-        "top-pickup-zones: total %.2fs  (fetch=%.2fs, sort=%.4fs)",
-        time.time() - total_start, fetch_time, sort_time,
-    )
-    return result
+    return sorted_zones[:top_n]

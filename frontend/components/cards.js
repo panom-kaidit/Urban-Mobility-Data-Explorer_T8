@@ -92,7 +92,7 @@ function _makeSpark(canvasId, color) {
     options: {
       responsive:          true,
       maintainAspectRatio: false,
-      animation:           { duration: 400 },
+      animation:           false,
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales:  {
         x: { display: false },
@@ -159,7 +159,7 @@ function showCardsError() {
   container.innerHTML = (
     '<div style="grid-column:1/-1;padding:1.5rem;text-align:center;color:var(--accent-red);font-size:0.82rem;">' +
       '<i class="fa-solid fa-triangle-exclamation" style="margin-right:0.4rem"></i>' +
-      'Could not load dashboard stats. Is the backend running at localhost:8000?' +
+      'Dashboard data unavailable.' +
     '</div>'
   );
 }

@@ -1,5 +1,5 @@
-// Shared chart utilities for the dark analytics theme.
-// Requires: Chart.js, api.js (for dark defaults already applied in api.js)
+// Shared chart utilities for the analytics theme.
+// Requires: Chart.js and api.js.
 
 // ---- Borough color palette (NYC subway lines) ----
 var BOROUGH_COLORS = {
@@ -21,18 +21,18 @@ function boroughColor(borough) {
   return BOROUGH_COLORS[borough] || "#8B9BB4";
 }
 
-// ---- Dark chart option presets ----
+// ---- Chart option presets ----
 
 function darkScales(opts) {
   opts = opts || {};
   return {
     x: Object.assign({
-      grid:  { color: "rgba(0, 212, 255, 0.06)", drawBorder: false },
-      ticks: { color: "#8B9BB4" },
+      grid:  { color: "rgba(23, 74, 126, 0.10)", drawBorder: false },
+      ticks: { color: "#526174" },
     }, opts.x || {}),
     y: Object.assign({
-      grid:  { color: "rgba(0, 212, 255, 0.06)", drawBorder: false },
-      ticks: { color: "#8B9BB4" },
+      grid:  { color: "rgba(23, 74, 126, 0.10)", drawBorder: false },
+      ticks: { color: "#526174" },
       beginAtZero: true,
     }, opts.y || {}),
   };
@@ -73,9 +73,9 @@ function createHorizontalBarChart(canvas, labels, values, colors, tooltipExtra) 
         },
       }),
       scales: darkScales({
-        x: { ticks: { color: "#8B9BB4", callback: function(v) { return formatCompact(v); } } },
+        x: { ticks: { color: "#526174", callback: function(v) { return formatCompact(v); } } },
         y: { grid: { display: false }, ticks: {
-          color: "#8B9BB4",
+          color: "#526174",
           callback: function(v, i) {
             var s = labels[i] || "";
             return s.length > 24 ? s.slice(0, 22) + "…" : s;
@@ -110,7 +110,7 @@ function createBarChart(canvas, labels, values, colors) {
       }),
       scales: darkScales({
         x: { grid: { display: false } },
-        y: { ticks: { color: "#8B9BB4", callback: function(v) { return formatCompact(v); } } },
+        y: { ticks: { color: "#526174", callback: function(v) { return formatCompact(v); } } },
       }),
     },
   });
@@ -142,8 +142,8 @@ function createLineChart(canvas, labels, values, color, fill) {
         },
       }),
       scales: darkScales({
-        x: { grid: { display: false }, ticks: { color: "#8B9BB4", maxTicksLimit: 8 } },
-        y: { ticks: { color: "#8B9BB4", callback: function(v) { return formatCompact(v); } } },
+        x: { grid: { display: false }, ticks: { color: "#526174", maxTicksLimit: 8 } },
+        y: { ticks: { color: "#526174", callback: function(v) { return formatCompact(v); } } },
       }),
     },
   });
@@ -163,12 +163,12 @@ function createGroupedBarChart(canvas, labels, datasets) {
         legend: {
           display: true,
           position: "top",
-          labels: { color: "#8B9BB4", boxWidth: 12, padding: 16 },
+          labels: { color: "#526174", boxWidth: 12, padding: 16 },
         },
       }),
       scales: darkScales({
         x: { grid: { display: false } },
-        y: { ticks: { color: "#8B9BB4", callback: function(v) { return "$" + v; } } },
+        y: { ticks: { color: "#526174", callback: function(v) { return "$" + v; } } },
       }),
     },
   });
@@ -193,7 +193,7 @@ function createDoughnutChart(canvas, labels, values, colors) {
         legend: {
           display:  true,
           position: "bottom",
-          labels:   { color: "#8B9BB4", padding: 12, boxWidth: 12 },
+          labels:   { color: "#526174", padding: 12, boxWidth: 12 },
         },
       }),
       cutout: "65%",
@@ -220,7 +220,7 @@ function showChartError(containerId, msg) {
   el.innerHTML = (
     '<div class="chart-placeholder">' +
       '<div class="chart-placeholder-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>' +
-      '<span style="color:var(--accent-red);max-width:260px;text-align:center;">' + (msg || "Could not load data.") + '</span>' +
+      '<span style="color:var(--accent-red);max-width:260px;text-align:center;">' + (msg || "Data unavailable.") + '</span>' +
     '</div>'
   );
 }
@@ -232,7 +232,7 @@ function showChartComingSoon(containerId, label) {
     '<div class="coming-soon">' +
       '<div class="coming-soon-icon"><i class="fa-solid fa-clock"></i></div>' +
       '<div class="section-title">' + (label || "Coming Soon") + '</div>' +
-      '<div class="coming-soon-label">Backend endpoint not yet implemented.</div>' +
+      '<div class="coming-soon-label">No data available.</div>' +
     '</div>'
   );
 }
