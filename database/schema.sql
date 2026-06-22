@@ -101,3 +101,75 @@ CREATE TABLE IF NOT EXISTS suspicious_records (
     removal_reason                TEXT NOT NULL,
     flagged_at                     TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Precomputed analytics tables. These are refreshed by the ETL after trips
+-- finish loading so API startup and unfiltered dashboard requests never scan
+-- the full trips table.
+CREATE TABLE IF NOT EXISTS analytics_summary (
+    singleton_id           INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+    total_trips            INTEGER NOT NULL,
+    total_revenue          REAL NOT NULL,
+    average_fare           REAL NOT NULL,
+    average_distance       REAL NOT NULL,
+    start_date             TEXT,
+    end_date               TEXT,
+    outlier_count          INTEGER NOT NULL,
+    outside_january_count  INTEGER NOT NULL,
+    suspicious_records     INTEGER NOT NULL,
+    location_count         INTEGER NOT NULL,
+    zone_boundary_count    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_pickup_zones (
+    zone_id     INTEGER PRIMARY KEY,
+    zone_name   TEXT,
+    borough     TEXT,
+    trip_count  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dropoff_zones (
+    zone_id     INTEGER PRIMARY KEY,
+    zone_name   TEXT,
+    borough     TEXT,
+    trip_count  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_fare_distribution (
+    bucket_order   INTEGER PRIMARY KEY,
+    range_label    TEXT NOT NULL,
+    trip_count     INTEGER NOT NULL,
+    avg_fare       REAL,
+    total_revenue  REAL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_borough_revenue (
+    borough               TEXT PRIMARY KEY,
+    total_trips           INTEGER NOT NULL,
+    total_revenue         REAL NOT NULL,
+    avg_revenue_per_trip  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_revenue (
+    date           TEXT PRIMARY KEY,
+    total_trips    INTEGER NOT NULL,
+    total_revenue  REAL NOT NULL,
+    avg_fare       REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_average_fare (
+    borough         TEXT NOT NULL,
+    payment_type    INTEGER NOT NULL,
+    payment_method  TEXT NOT NULL,
+    total_trips     INTEGER NOT NULL,
+    avg_fare        REAL,
+    avg_tip         REAL,
+    avg_total       REAL,
+    PRIMARY KEY (borough, payment_type)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_hourly_distance (
+    hour                  INTEGER PRIMARY KEY,
+    trip_count            INTEGER NOT NULL,
+    avg_distance          REAL,
+    avg_duration_minutes  REAL
+);
