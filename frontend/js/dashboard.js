@@ -12,6 +12,7 @@ async function initDashboard() {
   injectFilters();
   setupFilterHandlers(function(filters) { loadDashboardData(filters); });
   await loadDashboardData({});
+  showApp();
 }
 
 async function loadDashboardData(filters) {
@@ -34,7 +35,10 @@ async function loadDashboardData(filters) {
   var zones    = results[1].status === "fulfilled" ? results[1].value : null;
   var fareDist = results[2].status === "fulfilled" ? results[2].value : null;
 
-  if (summary) renderCards(summary);
+  if (summary) {
+    renderCards(summary);
+    if (typeof _renderSummaryTable === "function") _renderSummaryTable(summary);
+  }
   else showCardsError();
 
   if (zones && zones.zones && zones.zones.length > 0) {

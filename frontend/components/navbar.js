@@ -2,6 +2,9 @@
 // Call: injectNavbar()
 
 function injectNavbar() {
+  var existing = document.getElementById("navbar");
+  if (existing) return;
+
   const now     = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
@@ -50,6 +53,11 @@ function injectNavbar() {
   });
 
   _checkBackendStatus();
+}
+
+function showApp() {
+  var wrapper = document.getElementById("app-wrapper");
+  if (wrapper) wrapper.classList.add("ready");
 }
 
 function setNavbarTitle(title) {

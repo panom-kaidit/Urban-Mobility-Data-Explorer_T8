@@ -92,7 +92,7 @@ function _makeSpark(canvasId, color) {
     options: {
       responsive:          true,
       maintainAspectRatio: false,
-      animation:           { duration: 400 },
+      animation:           false,
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales:  {
         x: { display: false },

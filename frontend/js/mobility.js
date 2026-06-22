@@ -3,18 +3,25 @@ async function initMobilityPage() {
   injectNavbar();
   setNavbarTitle("Mobility Analytics");
 
-  await Promise.allSettled([
-    loadTopPickupZones(),
-    loadTopDropoffZones(),
-    loadBoroughComparison(),
-    loadAverageDistance(),
-    _loadFareRangeKpi(),
+  var results = await Promise.allSettled([
+    fetchTopPickupZones(10),
+    fetchTopDropoffZones(10),
+    fetchRevenueByBorough(),
+    fetchAverageDistanceByHour(),
+    fetchFareDistribution(),
   ]);
+
+  loadTopPickupZones(_mobilityResult(results[0]));
+  loadTopDropoffZones(_mobilityResult(results[1]));
+  loadBoroughComparison(_mobilityResult(results[2]));
+  loadAverageDistance(_mobilityResult(results[3]));
+  _loadFareRangeKpi(_mobilityResult(results[4]));
+  showApp();
 }
 
-async function loadTopPickupZones() {
+function loadTopPickupZones(data) {
   try {
-    var data  = await fetchTopPickupZones(10);
+    if (!data) throw new Error("Top pickup zones request failed");
     var zones = data.zones || [];
 
     if (zones.length === 0) {
@@ -48,9 +55,7 @@ async function loadTopPickupZones() {
   }
 }
 
-async function loadTopDropoffZones() {
-  var data = await fetchTopDropoffZones(10);   // returns null on fetch error
-
+function loadTopDropoffZones(data) {
   if (!data) {
     showChartComingSoon("mob-dropoff-container", "Top Dropoff Zones");
     return;
@@ -78,9 +83,9 @@ async function loadTopDropoffZones() {
   }
 }
 
-async function loadBoroughComparison() {
+function loadBoroughComparison(data) {
   try {
-    var data     = await fetchRevenueByBorough();
+    if (!data) throw new Error("Borough comparison request failed");
     var boroughs = data.boroughs;
 
     var container = document.getElementById("mob-borough-container");
@@ -99,9 +104,7 @@ async function loadBoroughComparison() {
   }
 }
 
-async function loadAverageDistance() {
-  var data = await fetchAverageDistanceByHour();   // returns null on fetch error
-
+function loadAverageDistance(data) {
   if (!data) {
     showChartComingSoon("mob-distance-container", "Average Distance by Hour");
     return;
@@ -130,9 +133,8 @@ async function loadAverageDistance() {
   }
 }
 
-async function _loadFareRangeKpi() {
+function _loadFareRangeKpi(data) {
   try {
-    var data = await fetchFareDistribution();
     if (!data || !data.distribution) return;
     var busiest = data.distribution.reduce(function(max, r) {
       return r.trip_count > max.trip_count ? r : max;
@@ -144,6 +146,10 @@ async function _loadFareRangeKpi() {
 function _set(id, val) {
   var el = document.getElementById(id);
   if (el) el.textContent = val;
+}
+
+function _mobilityResult(result) {
+  return result && result.status === "fulfilled" ? result.value : null;
 }
 
 document.addEventListener("DOMContentLoaded", initMobilityPage);

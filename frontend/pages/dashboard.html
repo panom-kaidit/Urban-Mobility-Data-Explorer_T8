@@ -27,6 +27,32 @@
         <!-- Filters panel (rendered by filters.js) -->
         <div id="filters-container"></div>
 
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Top Pickup Zones</div>
+                <div class="chart-card-subtitle">Top 10 zones by trip volume</div>
+              </div>
+            </div>
+            <div class="chart-container" id="zones-chart-container">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Fare Distribution</div>
+                <div class="chart-card-subtitle">Trips grouped by fare range</div>
+              </div>
+            </div>
+            <div class="chart-container" id="fare-chart-container">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Summary data table -->
         <div class="summary-table-panel" id="reports-summary-table">
           <div class="summary-table-panel-header">
@@ -66,6 +92,7 @@
   <script defer src="../components/navbar.js"></script>
   <script defer src="../components/sidebar.js"></script>
   <script defer src="../js/filters.js"></script>
+  <script defer src="../js/router.js"></script>
   <script defer src="../js/dashboard.js"></script>
   <script defer src="../js/reports.js"></script>
 

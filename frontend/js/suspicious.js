@@ -20,45 +20,56 @@ async function initDataQualityPage() {
     if (_dqPage < maxPage) { _dqPage++; _loadPage(); }
   });
 
-  // Pre-fetch summary to get the live clean trip count for KPIs and charts.
-  try {
-    var summary = await fetchSummary();
-    _cleanTripCount = summary.totalTrips || 0;
-  } catch (_) {}
+  var results = await Promise.allSettled([
+    fetchSummary(),
+    fetchSuspiciousRecords(_dqLimit, 0),
+  ]);
 
-  await _loadPage();
+  if (results[0].status === "fulfilled") {
+    var summary = results[0].value;
+    _cleanTripCount = summary.totalTrips || 0;
+  }
+
+  if (results[1].status === "fulfilled") {
+    _renderPage(results[1].value);
+  } else {
+    _showLoadError(results[1].reason);
+  }
+  showApp();
 }
 
 async function _loadPage() {
   _setNavBtns(false, false);
 
   try {
-    var data  = await fetchSuspiciousRecords(_dqLimit, _dqPage * _dqLimit);
-    var items = data.items || [];
-
-    // data.count is the total count from SELECT COUNT(*), not just this page.
-    _dqTotal = data.count || 0;
-
-    // Accumulate reason counts across pages for the bar chart.
-    items.forEach(function(r) {
-      var reason = r.removal_reason || "unknown";
-      _dqReasons[reason] = (_dqReasons[reason] || 0) + 1;
-    });
-
-    _updateKpis();
-    _renderTable(items);
-    _updateLabel();
-    _setNavBtns(_dqPage > 0, items.length === _dqLimit);
-
-    if (_dqPage === 0) {
-      _renderCharts();
-    }
-
+    var data = await fetchSuspiciousRecords(_dqLimit, _dqPage * _dqLimit);
+    _renderPage(data);
   } catch (err) {
-    var tbody = document.getElementById("dq-records-tbody");
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--accent-red);padding:1.5rem">Could not load records. Is the backend running?</td></tr>';
-    console.error("initDataQualityPage:", err);
+    _showLoadError(err);
   }
+}
+
+function _renderPage(data) {
+  var items = data.items || [];
+  _dqTotal = data.count || 0;
+
+  items.forEach(function(r) {
+    var reason = r.removal_reason || "unknown";
+    _dqReasons[reason] = (_dqReasons[reason] || 0) + 1;
+  });
+
+  _updateKpis();
+  _renderTable(items);
+  _updateLabel();
+  _setNavBtns(_dqPage > 0, items.length === _dqLimit);
+
+  if (_dqPage === 0) _renderCharts();
+}
+
+function _showLoadError(err) {
+  var tbody = document.getElementById("dq-records-tbody");
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--accent-red);padding:1.5rem">Could not load records. Is the backend running?</td></tr>';
+  console.error("initDataQualityPage:", err);
 }
 
 function _updateKpis() {

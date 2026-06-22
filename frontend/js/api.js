@@ -5,6 +5,7 @@ const API_BASE_URL = "http://localhost:8000/api";
 
 // Set global Chart.js defaults for the dark theme.
 if (typeof Chart !== "undefined") {
+  Chart.defaults.animation       = false;
   Chart.defaults.color           = "#8B9BB4";
   Chart.defaults.borderColor     = "rgba(0, 212, 255, 0.07)";
   Chart.defaults.font.family     = "'Inter', system-ui, sans-serif";

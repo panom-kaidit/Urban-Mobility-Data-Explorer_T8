@@ -6,20 +6,26 @@ async function initRevenuePage() {
   injectNavbar();
   setNavbarTitle("Revenue Analytics");
 
-  await loadRevenueByBorough();
+  var results = await Promise.allSettled([
+    fetchRevenueByBorough(),
+    fetchRevenueTrends(),
+    fetchAverageFare(),
+    fetchFareDistribution(),
+  ]);
 
-  setTimeout(loadRevenueTrend, 50);
-  setTimeout(loadAverageFare, 100);
-  setTimeout(loadFareDistribution, 150);
+  loadRevenueByBorough(_resultValue(results[0]));
+  loadRevenueTrend(_resultValue(results[1]));
+  loadAverageFare(_resultValue(results[2]));
+  loadFareDistribution(_resultValue(results[3]));
+  showApp();
 }
 
 
-async function loadRevenueByBorough() {
+function loadRevenueByBorough(data) {
   var wrap = document.getElementById("wrap-revenue-by-borough");
-  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data     = await fetchRevenueByBorough();
+    if (!data) throw new Error("Revenue by borough request failed");
     var boroughs = data.boroughs;
 
     var totalRevenue = boroughs.reduce(function(s, b) { return s + b.total_revenue; }, 0);
@@ -55,12 +61,11 @@ async function loadRevenueByBorough() {
   }
 }
 
-async function loadRevenueTrend() {
+function loadRevenueTrend(data) {
   var wrap = document.getElementById("wrap-revenue-trend");
-  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data  = await fetchRevenueTrends();
+    if (!data) throw new Error("Revenue trend request failed");
     var trend = data.trend;
 
     var peak = trend.reduce(function(max, d) {
@@ -90,12 +95,11 @@ async function loadRevenueTrend() {
   }
 }
 
-async function loadAverageFare() {
+function loadAverageFare(data) {
   var wrap = document.getElementById("wrap-average-fare");
-  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data = await fetchAverageFare();
+    if (!data) throw new Error("Average fare request failed");
     var rows = data.fares;
 
     var boroughList = [];
@@ -134,12 +138,11 @@ async function loadAverageFare() {
   }
 }
 
-async function loadFareDistribution() {
+function loadFareDistribution(data) {
   var wrap = document.getElementById("wrap-fare-distribution");
-  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    var data = await fetchFareDistribution();
+    if (!data) throw new Error("Fare distribution request failed");
     var rows = data.distribution;
 
     var busiest = rows.reduce(function(max, r) {
@@ -172,6 +175,9 @@ function _setKpi(id, val) {
 function _setCaption(id, val) {
   var el = document.getElementById(id);
   if (el) el.textContent = val;
+}
+function _resultValue(result) {
+  return result && result.status === "fulfilled" ? result.value : null;
 }
 function _loadHtml() {
   return '<div class="chart-placeholder"><div class="loading-spinner"></div></div>';

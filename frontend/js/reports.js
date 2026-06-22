@@ -17,7 +17,8 @@ async function initReportsPage() {
   setNavbarTitle("Reports");
 
   _renderSummaryTable(null);  // Show loading state immediately
-  _loadReportContext();       // Fire all independent loaders — don't await
+  await _loadReportContextTogether();
+  showApp();
 }
 
 function _loadReportContext() {
@@ -73,6 +74,48 @@ function _loadReportContext() {
     _reportContext.revenueTrend = data && data.trend ? data.trend : [];
     _onDone();
   }).catch(function() { _onError(); });
+}
+
+async function _loadReportContextTogether() {
+  var badge = document.getElementById("reports-summary-badge");
+  if (badge) {
+    badge.textContent = "Loading...";
+    badge.className = "badge badge-cyan";
+  }
+
+  var results = await Promise.allSettled([
+    fetchSummary(),
+    fetchTopPickupZones(10),
+    fetchTopDropoffZones(10),
+    fetchRevenueByBorough(),
+    fetchRevenueTrends(),
+  ]);
+
+  function value(index) {
+    return results[index].status === "fulfilled" ? results[index].value : null;
+  }
+
+  var summary = value(0);
+  var pickup = value(1);
+  var dropoff = value(2);
+  var boroughs = value(3);
+  var trend = value(4);
+
+  _reportContext.summary = summary;
+  _reportContext.topPickupZones = pickup && pickup.zones ? pickup.zones : [];
+  _reportContext.topDropoffZones = dropoff && dropoff.zones ? dropoff.zones : [];
+  _reportContext.revenueByBorough = boroughs && boroughs.boroughs ? boroughs.boroughs : [];
+  _reportContext.revenueTrend = trend && trend.trend ? trend.trend : [];
+
+  if (summary) _renderSummaryTable(summary);
+
+  var complete = results.every(function(result) {
+    return result.status === "fulfilled";
+  });
+  if (badge) {
+    badge.textContent = complete ? "Live Data" : "Partial Data";
+    badge.className = complete ? "badge badge-green" : "badge badge-yellow";
+  }
 }
 
 function _renderSummaryTable(summary) {
@@ -223,8 +266,5 @@ document.addEventListener("DOMContentLoaded", function() {
   // table population only — no sidebar override, no duplicate API calls.
   if (document.getElementById("report-cards")) {
     initReportsPage();
-  } else if (document.getElementById("reports-data-tbody")) {
-    _renderSummaryTable(null);
-    fetchSummary().then(function(s) { _renderSummaryTable(s); }).catch(function() {});
   }
 });
