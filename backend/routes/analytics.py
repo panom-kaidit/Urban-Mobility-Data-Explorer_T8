@@ -2,6 +2,7 @@
 
 import sqlite3
 from datetime import datetime, timedelta
+from threading import Lock
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,8 +15,6 @@ from backend.algorithms.merge_sort import merge_sort
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
-from threading import Lock
-
 _summary_lock = Lock()
 _revenue_lock = Lock()
 _fare_lock = Lock()
@@ -24,17 +23,6 @@ _trend_lock = Lock()
 _distance_lock = Lock()
 _top_pickup_zones_lock = Lock()
 _top_dropoff_zones_lock = Lock()
-
-
-# Module-level in-memory caches -dataset is static so we can cache freely without worrying about invalidation.
-_summary_cache = None
-_fare_distribution_cache = None
-_revenue_by_borough_cache = None
-_revenue_trends_cache = None
-_average_fare_cache = None
-_average_distance_cache = None
-_top_dropoff_zones_cache: dict = {}
-_top_pickup_zones_cache: dict = {}
 
 
 class SummaryResponse(BaseModel):
@@ -92,30 +80,19 @@ def get_summary(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return a single-row aggregate summary."""
-    global _summary_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _summary_cache is not None:
-            return _summary_cache
         with _summary_lock:
-            if _summary_cache is not None:
-                return _summary_cache
             try:
                 row = db.execute("""
                     SELECT
-                        COUNT(*) AS total_trips,
-                        COALESCE(ROUND(SUM(total_amount), 2), 0.0)    AS total_revenue,
-                        COALESCE(ROUND(AVG(fare_amount), 2), 0.0)     AS average_fare,
-                        COALESCE(ROUND(AVG(trip_distance), 2), 0.0)   AS average_distance,
-                        MIN(SUBSTR(pickup_datetime, 1, 10))            AS start_date,
-                        MAX(SUBSTR(pickup_datetime, 1, 10))            AS end_date,
-                        COALESCE(SUM(CASE WHEN is_outlier = 1 THEN 1 ELSE 0 END), 0)
-                                                                       AS outlier_count,
-                        COALESCE(SUM(CASE WHEN SUBSTR(pickup_datetime,1,10) < '2019-01-01'
-                                               OR SUBSTR(pickup_datetime,1,10) > '2019-01-31'
-                                      THEN 1 ELSE 0 END), 0)           AS outside_january_count
-                    FROM trips
+                        total_trips, total_revenue, average_fare,
+                        average_distance, start_date, end_date,
+                        outlier_count, outside_january_count,
+                        suspicious_records, location_count, zone_boundary_count
+                    FROM analytics_summary
+                    WHERE singleton_id = 1
                 """).fetchone()
                 result: dict = dict(row)
                 result["total_trips"]           = int(result.get("total_trips") or 0)
@@ -124,22 +101,11 @@ def get_summary(
                 result["average_distance"]      = float(result.get("average_distance") or 0)
                 result["outlier_count"]         = int(result.get("outlier_count") or 0)
                 result["outside_january_count"] = int(result.get("outside_january_count") or 0)
-                result["suspicious_records"] = int(db.execute(
-                    "SELECT COUNT(*) FROM suspicious_records"
-                ).fetchone()[0] or 0)
-                result["location_count"] = int(db.execute(
-                    "SELECT COUNT(*) FROM locations"
-                ).fetchone()[0] or 0)
-                result["zone_boundary_count"] = int(db.execute(
-                    "SELECT COUNT(*) FROM zone_boundaries"
-                ).fetchone()[0] or 0)
-                if result["total_trips"] > 0:
-                    _summary_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Summary query failed: {exc}")
 
-    # Filtered path — bypasses cache entirely.
+    # Filtered requests require the source table because aggregates are unfiltered.
     conditions, params = _build_filters(borough, date, distance, fare)
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
     try:
@@ -192,19 +158,13 @@ def get_top_pickup_zones(
     fare: Optional[float] = Query(default=None, ge=0),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    global _top_pickup_zones_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if top_n in _top_pickup_zones_cache:
-            return _top_pickup_zones_cache[top_n]
         with _top_pickup_zones_lock:
-            if top_n in _top_pickup_zones_cache:
-                return _top_pickup_zones_cache[top_n]
             try:
                 zones = find_top_pickup_zones_from_database(db, top_n)
                 result = {"algorithm": "merge_sort", "top_n": top_n, "zones": zones}
-                _top_pickup_zones_cache[top_n] = result
                 return result
             except Exception as exc:
                 raise HTTPException(
@@ -245,31 +205,19 @@ def get_top_dropoff_zones(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return the top N dropoff zones by trip count."""
-    global _top_dropoff_zones_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        cache_key = top_n
-        if cache_key in _top_dropoff_zones_cache:
-            return _top_dropoff_zones_cache[cache_key]
         with _top_dropoff_zones_lock:
-            if cache_key in _top_dropoff_zones_cache:
-                return _top_dropoff_zones_cache[cache_key]
             try:
                 rows = db.execute("""
                     SELECT
-                        do_location_id  AS zone_id,
-                        MIN(dropoff_zone)    AS zone_name,
-                        MIN(dropoff_borough) AS borough,
-                        COUNT(*)        AS trip_count
-                    FROM trips
-                    WHERE dropoff_zone IS NOT NULL
-                    GROUP BY do_location_id
+                        zone_id, zone_name, borough, trip_count
+                    FROM analytics_dropoff_zones
                     ORDER BY trip_count DESC
                     LIMIT ?
                 """, (top_n,)).fetchall()
                 result = {"top_n": top_n, "zones": [dict(r) for r in rows]}
-                _top_dropoff_zones_cache[cache_key] = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Top dropoff zones query failed: {exc}")
@@ -306,93 +254,18 @@ def get_fare_distribution(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return distribution of fares across price ranges."""
-    global _fare_distribution_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _fare_distribution_cache is not None:
-            return _fare_distribution_cache
         with _fare_lock:
-            if _fare_distribution_cache is not None:
-                return _fare_distribution_cache
             try:
                 rows = db.execute("""
-                    WITH distribution AS (
-                        SELECT
-                            1 AS bucket_order,
-                            '0-10' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount > 0 AND fare_amount < 10
-
-                        UNION ALL
-
-                        SELECT
-                            2 AS bucket_order,
-                            '10-20' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount >= 10 AND fare_amount < 20
-
-                        UNION ALL
-
-                        SELECT
-                            3 AS bucket_order,
-                            '20-30' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount >= 20 AND fare_amount < 30
-
-                        UNION ALL
-
-                        SELECT
-                            4 AS bucket_order,
-                            '30-40' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount >= 30 AND fare_amount < 40
-
-                        UNION ALL
-
-                        SELECT
-                            5 AS bucket_order,
-                            '40-50' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount >= 40 AND fare_amount < 50
-
-                        UNION ALL
-
-                        SELECT
-                            6 AS bucket_order,
-                            '50+' AS range,
-                            COUNT(*) AS trip_count,
-                            ROUND(AVG(fare_amount), 2) AS avg_fare,
-                            ROUND(SUM(total_amount), 2) AS total_revenue
-                        FROM trips
-                        WHERE fare_amount >= 50
-                    )
-                    SELECT
-                        range,
-                        trip_count,
-                        avg_fare,
-                        total_revenue
-                    FROM distribution
+                    SELECT range_label AS range, trip_count, avg_fare, total_revenue
+                    FROM analytics_fare_distribution
                     WHERE trip_count > 0
                     ORDER BY bucket_order
                 """).fetchall()
                 result = {"distribution": [dict(r) for r in rows]}
-                _fare_distribution_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Fare distribution query failed: {exc}")
@@ -435,30 +308,17 @@ def get_revenue_by_borough(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return total revenue grouped by pickup borough, ordered highest first."""
-    global _revenue_by_borough_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _revenue_by_borough_cache is not None:
-            return _revenue_by_borough_cache
         with _revenue_lock:
-            if _revenue_by_borough_cache is not None:
-                return _revenue_by_borough_cache
             try:
                 rows = db.execute("""
-                    SELECT
-                        pickup_borough              AS borough,
-                        COUNT(*)                    AS total_trips,
-                        ROUND(SUM(total_amount), 2) AS total_revenue,
-                        ROUND(AVG(total_amount), 2) AS avg_revenue_per_trip
-                    FROM trips
-                    WHERE pickup_borough IS NOT NULL
-                      AND pickup_borough != 'Unknown'
-                    GROUP BY pickup_borough
+                    SELECT borough, total_trips, total_revenue, avg_revenue_per_trip
+                    FROM analytics_borough_revenue
                     ORDER BY total_revenue DESC
                 """).fetchall()
                 result = {"boroughs": [dict(r) for r in rows]}
-                _revenue_by_borough_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Revenue by borough query failed: {exc}")
@@ -494,29 +354,17 @@ def get_revenue_trends(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return daily revenue trend across the dataset's date range."""
-    global _revenue_trends_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _revenue_trends_cache is not None:
-            return _revenue_trends_cache
         with _trend_lock:
-            if _revenue_trends_cache is not None:
-                return _revenue_trends_cache
             try:
                 rows = db.execute("""
-                    SELECT
-                        SUBSTR(pickup_datetime, 1, 10) AS date,
-                        COUNT(*)                        AS total_trips,
-                        ROUND(SUM(total_amount), 2)     AS total_revenue,
-                        ROUND(AVG(total_amount), 2)     AS avg_fare
-                    FROM trips
-                    WHERE pickup_datetime IS NOT NULL
-                    GROUP BY SUBSTR(pickup_datetime, 1, 10)
+                    SELECT date, total_trips, total_revenue, avg_fare
+                    FROM analytics_daily_revenue
                     ORDER BY date ASC
                 """).fetchall()
                 result = {"trend": [dict(r) for r in rows]}
-                _revenue_trends_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Revenue trends query failed: {exc}")
@@ -552,39 +400,19 @@ def get_average_fare(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return average fare, tip, and total broken down by borough and payment method."""
-    global _average_fare_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _average_fare_cache is not None:
-            return _average_fare_cache
         with _average_fare_lock:
-            if _average_fare_cache is not None:
-                return _average_fare_cache
             try:
                 rows = db.execute("""
                     SELECT
-                        pickup_borough              AS borough,
-                        CASE payment_type
-                            WHEN 1 THEN 'Credit Card'
-                            WHEN 2 THEN 'Cash'
-                            WHEN 3 THEN 'No Charge'
-                            WHEN 4 THEN 'Dispute'
-                            ELSE 'Other'
-                        END                         AS payment_method,
-                        COUNT(*)                    AS total_trips,
-                        ROUND(AVG(fare_amount), 2)  AS avg_fare,
-                        ROUND(AVG(tip_amount), 2)   AS avg_tip,
-                        ROUND(AVG(total_amount), 2) AS avg_total
-                    FROM trips
-                    WHERE pickup_borough IS NOT NULL
-                      AND pickup_borough != 'Unknown'
-                      AND fare_amount > 0
-                    GROUP BY pickup_borough, payment_type
-                    ORDER BY pickup_borough, total_trips DESC
+                        borough, payment_method, total_trips,
+                        avg_fare, avg_tip, avg_total
+                    FROM analytics_average_fare
+                    ORDER BY borough, total_trips DESC
                 """).fetchall()
                 result = {"fares": [dict(r) for r in rows]}
-                _average_fare_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Average fare query failed: {exc}")
@@ -628,30 +456,18 @@ def get_average_distance(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Return average trip distance and duration grouped by pickup hour."""
-    global _average_distance_cache
     is_filtered = any([borough, date, distance is not None, fare is not None])
 
     if not is_filtered:
-        if _average_distance_cache is not None:
-            return _average_distance_cache
         with _distance_lock:
-            if _average_distance_cache is not None:
-                return _average_distance_cache
             try:
                 rows = db.execute("""
                     SELECT
-                        pickup_hour                          AS hour,
-                        COUNT(*)                             AS trip_count,
-                        ROUND(AVG(trip_distance), 2)         AS avg_distance,
-                        ROUND(AVG(trip_duration_minutes), 1) AS avg_duration_minutes
-                    FROM trips
-                    WHERE pickup_hour IS NOT NULL
-                      AND trip_distance > 0
-                    GROUP BY pickup_hour
-                    ORDER BY pickup_hour ASC
+                        hour, trip_count, avg_distance, avg_duration_minutes
+                    FROM analytics_hourly_distance
+                    ORDER BY hour ASC
                 """).fetchall()
                 result = {"distances": [dict(r) for r in rows]}
-                _average_distance_cache = result
                 return result
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Average distance query failed: {exc}")
