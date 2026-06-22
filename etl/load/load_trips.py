@@ -1,4 +1,12 @@
 import sys
+from pathlib import Path
+
+# Allow this loader to be run directly (``python etl/load/load_trips.py``)
+# as well as imported as part of the ``etl`` package.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import pandas as pd
 from etl.extract import ParquetLoader
 from etl.transform.validator import DataValidator
@@ -9,6 +17,7 @@ from etl.transform.feature_engineer import TripFeatureEngineer
 from etl.extract import LookupLoader
 from etl.utils.config import TRIP_DATA_FILE, LOOKUP_FILE, CHUNK_SIZE
 from backend.config.database import get_connection
+from etl.load.load_analytics import refresh_analytics
 
 
 def build_pipeline():
@@ -128,8 +137,8 @@ def load_trips():
 
     loader       = ParquetLoader(TRIP_DATA_FILE, chunk_size=CHUNK_SIZE)
     total_rows   = loader.get_row_count()
-    total_chunks = (total_rows // CHUNK_SIZE) + 1
-    print(f"Processing {total_rows:,} rows in ~{total_chunks} chunks of {CHUNK_SIZE:,}...")
+    total_chunks = (total_rows + CHUNK_SIZE - 1) // CHUNK_SIZE
+    print(f"Processing {total_rows:,} rows in {total_chunks} chunks of {CHUNK_SIZE:,}...")
 
     conn   = get_connection()
     cursor = conn.cursor()
@@ -162,6 +171,8 @@ def load_trips():
             )
 
     conn.commit()
+    print("Building analytics aggregate tables...", flush=True)
+    refresh_analytics(conn)
     conn.close()
 
     print(f"\nDone.")
