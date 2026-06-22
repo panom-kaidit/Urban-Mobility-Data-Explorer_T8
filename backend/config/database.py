@@ -45,12 +45,13 @@ def get_read_connection():
     return conn
 
 
-def init_db():
+def init_db(create_indexes: bool = True):
     """Create all tables from schema.sql, then add indexes."""
     conn = get_connection()
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA_FILE.read_text())
-    conn.executescript(INDEXES_FILE.read_text())
+    if create_indexes:
+        conn.executescript(INDEXES_FILE.read_text())
     conn.commit()
     conn.close()
 

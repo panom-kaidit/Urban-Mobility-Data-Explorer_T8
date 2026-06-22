@@ -1,6 +1,9 @@
-"""Build the small aggregate tables used by analytics endpoints."""
+from time import perf_counter
+
+import pandas as pd
 
 from backend.config.database import get_connection
+from etl.load.analytics_accumulator import AnalyticsAccumulator
 
 
 AGGREGATE_TABLES = (
@@ -18,8 +21,8 @@ AGGREGATE_TABLES = (
 )
 
 
-def refresh_analytics(connection=None) -> None:
-    """Rebuild every aggregate in one transaction after an ETL load."""
+def _refresh_analytics_with_sql_scans(connection=None) -> None:
+    """Legacy multi-scan implementation retained for output comparison tests."""
     owns_connection = connection is None
     conn = connection or get_connection()
 
@@ -203,6 +206,47 @@ def refresh_analytics(connection=None) -> None:
         """)
 
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owns_connection:
+            conn.close()
+
+
+ANALYTICS_SOURCE_COLUMNS = (
+    "pickup_datetime", "pickup_borough", "pickup_zone",
+    "dropoff_borough", "dropoff_zone", "pu_location_id", "do_location_id",
+    "payment_type", "fare_amount", "tip_amount", "total_amount",
+    "trip_distance", "trip_duration_minutes", "pickup_hour", "is_outlier",
+)
+
+
+def refresh_analytics(connection=None, chunk_size: int = 100_000) -> None:
+    """Rebuild analytics with one streamed scan instead of eleven SQL scans."""
+    owns_connection = connection is None
+    conn = connection or get_connection()
+    accumulator = AnalyticsAccumulator()
+    rows_seen = 0
+    started = perf_counter()
+
+    try:
+        for chunk in pd.read_sql_query(
+            f"SELECT {', '.join(ANALYTICS_SOURCE_COLUMNS)} FROM trips",
+            conn,
+            chunksize=chunk_size,
+            parse_dates=["pickup_datetime"],
+        ):
+            accumulator.add_chunk(chunk)
+            rows_seen += len(chunk)
+            print(f"  Analytics scan: {rows_seen:,} rows", flush=True)
+
+        accumulator.write(conn, AGGREGATE_TABLES)
+        conn.commit()
+        print(
+            f"Analytics refreshed in one pass ({perf_counter() - started:.1f}s).",
+            flush=True,
+        )
     except Exception:
         conn.rollback()
         raise

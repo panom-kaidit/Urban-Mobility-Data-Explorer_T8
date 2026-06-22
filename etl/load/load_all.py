@@ -1,9 +1,6 @@
-"""Central entry point for loading all ETL data into the database."""
-
 import sys
 from pathlib import Path
 
-# Support both ``python etl/load/load_all.py`` and package imports.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -17,7 +14,7 @@ from etl.load.load_zone_boundaries import load_zone_boundaries
 def load_all() -> None:
     """Initialize the database and execute every loader in dependency order."""
     steps = (
-        ("Initializing database schema", init_db),
+        ("Initializing database schema", lambda: init_db(create_indexes=False)),
         ("Loading taxi zone locations", load_locations),
         ("Loading zone boundaries", load_zone_boundaries),
         ("Loading and transforming trips", load_trips),
