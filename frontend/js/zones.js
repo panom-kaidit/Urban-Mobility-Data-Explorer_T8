@@ -104,10 +104,10 @@ function _initMap(zones, zoneDetails) {
   });
 
   // Fetch GeoJSON for each of the top 10 zones in parallel and overlay
-  var colorScale = ["#FF5A7A","#FF9F43","#FCCC0A","#10F0A0","#00D4FF",
-                    "#3B82F6","#8B5CF6","#B933AD","#FF6319","#00933C"];
-
   var maxTrips = zones[0].trip_count;
+  var minTrips = zones[zones.length - 1].trip_count;
+  var tripRange = Math.max(maxTrips - minTrips, 1);
+  var zoneGreen = "#16A34A";
 
   zones.forEach(function(z, i) {
     var detail = zoneDetails[i];
@@ -116,14 +116,14 @@ function _initMap(zones, zoneDetails) {
     var geo;
     try { geo = JSON.parse(detail.geometry); } catch (_) { return; }
 
-    var fillOpacity = 0.25 + 0.45 * (z.trip_count / maxTrips);
-    var color       = colorScale[i % colorScale.length];
+    var strength = (z.trip_count - minTrips) / tripRange;
+    var fillOpacity = 0.22 + 0.63 * strength;
 
     L.geoJSON(geo, {
       style: {
-        fillColor:   color,
+        fillColor:   zoneGreen,
         fillOpacity: fillOpacity,
-        color:       color,
+        color:       zoneGreen,
         weight:      1.5,
         opacity:     0.8,
       },
@@ -140,8 +140,8 @@ function _initMap(zones, zoneDetails) {
   var legend = L.control({ position: "bottomright" });
   legend.onAdd = function() {
     var div = L.DomUtil.create("div");
-    div.style.cssText = "background:rgba(11,20,71,0.92);border:1px solid rgba(0,212,255,0.2);padding:8px 12px;border-radius:8px;font-size:11px;color:#8B9BB4;";
-    div.innerHTML = "<strong style='color:#E2E8F0'>Top Pickup Zones</strong><br>Darker = more trips";
+    div.style.cssText = "background:rgba(255,255,255,0.94);border:1px solid #BBF7D0;padding:8px 12px;border-radius:8px;font-size:11px;color:#526174;";
+    div.innerHTML = "<strong style='color:#166534'>Top Pickup Zones</strong><br>More green = more trips";
     return div;
   };
   legend.addTo(_map);
