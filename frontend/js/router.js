@@ -2,6 +2,7 @@
 // It keeps the sidebar/navbar mounted and swaps only the page content.
 
 var _routeLoading = false;
+var _currentPageUrl = window.location.href;
 
 var PAGE_INITIALIZERS = {
   "dashboard.html": "initDashboard",
@@ -84,6 +85,11 @@ async function navigateToPage(href, addHistory) {
   _routeLoading = true;
 
   var pageUrl = _absoluteUrl(href, window.location.href);
+  var previousTitle = document.title;
+  var currentContent = null;
+  var nextContent = null;
+  var mainContent = null;
+  var idSnapshot = [];
 
   try {
     var response = await fetch(pageUrl);
@@ -91,14 +97,15 @@ async function navigateToPage(href, addHistory) {
 
     var html = await response.text();
     var pageDocument = new DOMParser().parseFromString(html, "text/html");
-    var nextContent = pageDocument.querySelector(".content-inner");
+    nextContent = pageDocument.querySelector(".content-inner");
     if (!nextContent) throw new Error("Page content unavailable");
 
     await _loadStyles(pageDocument, pageUrl);
     await _loadPageScripts(pageDocument, pageUrl);
 
-    var currentContent = document.querySelector(".content-inner");
-    var mainContent = currentContent.parentElement;
+    currentContent = document.querySelector(".content-inner");
+    if (!currentContent) throw new Error("Current page content unavailable");
+    mainContent = currentContent.parentElement;
     var mainHeight = mainContent.getBoundingClientRect().height;
 
     // Freeze the page dimensions while the incoming charts calculate sizes.
@@ -115,6 +122,7 @@ async function navigateToPage(href, addHistory) {
     // Keep the current tab visible while the next one loads. Remove its IDs so
     // the incoming page controller only finds elements in the new content.
     currentContent.querySelectorAll("[id]").forEach(function(element) {
+      idSnapshot.push([element, element.id]);
       element.removeAttribute("id");
     });
     currentContent.style.position = "absolute";
@@ -127,7 +135,6 @@ async function navigateToPage(href, addHistory) {
     currentContent.parentElement.appendChild(nextContent);
 
     document.title = pageDocument.title;
-    if (addHistory) history.pushState({}, "", pageUrl);
 
     var pageName = new URL(pageUrl).pathname.split("/").pop();
     var initializerName = PAGE_INITIALIZERS[pageName];
@@ -142,6 +149,8 @@ async function navigateToPage(href, addHistory) {
     nextContent.style.left = "";
     nextContent.style.right = "";
     nextContent.style.visibility = "visible";
+    if (addHistory) history.pushState({}, "", pageUrl);
+    _currentPageUrl = pageUrl;
     currentContent.remove();
     mainContent.style.height = "";
     mainContent.style.overflow = "";
@@ -149,10 +158,53 @@ async function navigateToPage(href, addHistory) {
     window.scrollTo(0, 0);
   } catch (error) {
     console.error("Client navigation failed:", error);
-    window.location.href = pageUrl;
+
+    // Keep the current page alive. A navigation error must never turn into a
+    // hard browser reload, because that discards page and filter state.
+    if (nextContent && nextContent.parentElement) nextContent.remove();
+    idSnapshot.forEach(function(entry) {
+      if (entry[0].isConnected) entry[0].id = entry[1];
+    });
+    if (currentContent) {
+      currentContent.style.position = "";
+      currentContent.style.top = "";
+      currentContent.style.left = "";
+      currentContent.style.right = "";
+      currentContent.style.zIndex = "";
+      currentContent.style.background = "";
+      currentContent.style.pointerEvents = "";
+    }
+    if (mainContent) {
+      mainContent.style.height = "";
+      mainContent.style.overflow = "";
+      mainContent.style.boxSizing = "";
+    }
+    document.title = previousTitle;
+    if (window.location.href !== _currentPageUrl) {
+      history.replaceState({}, "", _currentPageUrl);
+    }
+    _showNavigationError();
   } finally {
     _routeLoading = false;
   }
+}
+
+function replaceCurrentPageUrl(url) {
+  history.replaceState({}, "", url);
+  _currentPageUrl = window.location.href;
+}
+
+function _showNavigationError() {
+  var existing = document.getElementById("navigation-error-toast");
+  if (existing) existing.remove();
+
+  var toast = document.createElement("div");
+  toast.id = "navigation-error-toast";
+  toast.setAttribute("role", "status");
+  toast.textContent = "That page could not be loaded. Please try again.";
+  toast.style.cssText = "position:fixed;right:1rem;bottom:1rem;z-index:1000;padding:.75rem 1rem;border-radius:8px;background:#7f1d1d;color:#fff;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.2)";
+  document.body.appendChild(toast);
+  setTimeout(function() { if (toast.isConnected) toast.remove(); }, 3500);
 }
 
 document.addEventListener("click", function(event) {
@@ -160,6 +212,7 @@ document.addEventListener("click", function(event) {
   if (!link || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
   event.preventDefault();
+  if (link.classList.contains("active")) return;
   navigateToPage(link.href, true);
 });
 

@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routes import trips, locations, suspicious_records, analytics
-from backend.config.database import init_db
 
 app = FastAPI(
     title="Urban Mobility Data Explorer",
@@ -9,7 +8,7 @@ app = FastAPI(
 )
 
 app.add_middleware(
-    # we allow cors from any origin for simplicity and it will be  changed in the future when backend is on a different domain than frontend. --- IGNORE ---
+    # allow cors from any origin for simplicity and it will be  changed in the future when backend is on a different domain than frontend. --- IGNORE ---
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
@@ -26,5 +25,3 @@ def root():
     return {
         "message": "Urban Mobility Data Explorer API"
     }
-
-init_db()

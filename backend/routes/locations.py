@@ -2,7 +2,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.config.database import get_connection
+from backend.config.database import get_read_connection
 
 
 router = APIRouter(prefix="/api/zones", tags=["Zones"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/zones", tags=["Zones"])
 
 def get_db():
     """Open one SQLite connection for a request, then close it."""
-    connection = get_connection()
+    connection = get_read_connection()
     try:
         yield connection
     finally:
