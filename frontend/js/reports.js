@@ -139,6 +139,22 @@ function _renderSummaryTable(summary) {
 
 function _buildLiveSummaryRows(summary) {
   var loadedTrips = Number(summary.totalTrips || 0);
+  if (summary.filtersApplied) {
+    var scope = [];
+    if (summary.filterBorough) scope.push(summary.filterBorough + " pickups");
+    if (summary.filterPickupDate) scope.push(summary.filterPickupDate);
+    var scopeNote = "Dashboard selection: " + scope.join(" and ") + ".";
+
+    return [
+      { metric: "Matching Trips", value: formatNumber(loadedTrips), notes: scopeNote },
+      { metric: "Total Revenue", value: formatCurrency(summary.totalRevenue), notes: "Revenue from trips in the current selection." },
+      { metric: "Average Fare", value: "$" + formatDecimal(summary.avgFare, 2), notes: "Average fare_amount in the current selection." },
+      { metric: "Average Distance", value: formatDecimal(summary.avgDistance, 2) + " mi", notes: "Average trip_distance in the current selection." },
+      { metric: "Pickup Date", value: _formatDateRange(summary), notes: "Pickup date represented by the current selection." },
+      { metric: "Outliers Kept", value: formatNumber(summary.outlierCount), notes: "Matching trips flagged as outliers but retained." },
+    ];
+  }
+
   var loadedPercent = _rawParquetRows ? ((loadedTrips / _rawParquetRows) * 100).toFixed(1) + "%" : "n/a";
   var rejectionRate = loadedTrips
     ? ((Number(summary.suspiciousRecords || 0) / (loadedTrips + Number(summary.suspiciousRecords || 0))) * 100).toFixed(2) + "%"

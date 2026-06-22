@@ -32,14 +32,10 @@ async function fetchJSON(endpoint) {
 
 // Trips endpoints
 
-async function fetchTrips(filters = {}) {
+async function fetchTrips(options = {}) {
   const params = [];
-  if (filters.limit)   params.push(`limit=${encodeURIComponent(filters.limit)}`);
-  if (filters.offset)  params.push(`offset=${encodeURIComponent(filters.offset)}`);
-  if (filters.borough) params.push(`borough=${encodeURIComponent(filters.borough)}`);
-  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
-  if (filters.fare)    params.push(`fare=${encodeURIComponent(filters.fare)}`);
-  if (filters.date)    params.push(`date=${encodeURIComponent(filters.date)}`);
+  if (options.limit)  params.push(`limit=${encodeURIComponent(options.limit)}`);
+  if (options.offset) params.push(`offset=${encodeURIComponent(options.offset)}`);
   const qs = params.length ? `?${params.join("&")}` : "";
   return fetchJSON(`/trips${qs}`);
 }
@@ -56,22 +52,25 @@ async function fetchZone(zoneId) {
 
 // Analytics endpoints
 
-function _analyticsFilterParams(filters) {
+function _dashboardFilterParams(filters) {
   const params = [];
-  if (filters.borough)  params.push(`borough=${encodeURIComponent(filters.borough)}`);
-  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
-  if (filters.fare)     params.push(`fare=${encodeURIComponent(filters.fare)}`);
-  if (filters.date)     params.push(`date=${encodeURIComponent(filters.date)}`);
+  filters = filters || {};
+  if (filters.borough) params.push(`borough=${encodeURIComponent(filters.borough)}`);
+  if (filters.pickupDate) params.push(`pickup_date=${encodeURIComponent(filters.pickupDate)}`);
   return params;
 }
 
+async function fetchDashboardFilterOptions() {
+  return fetchJSON("/analytics/dashboard-filter-options");
+}
+
 async function fetchTopPickupZones(topN = 10, filters = {}) {
-  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
+  const params = [`top_n=${encodeURIComponent(topN)}`].concat(_dashboardFilterParams(filters));
   return fetchJSON(`/analytics/top-pickup-zones?${params.join("&")}`);
 }
 
 async function fetchFareDistribution(filters = {}) {
-  const params = _analyticsFilterParams(filters);
+  const params = _dashboardFilterParams(filters);
   const qs = params.length ? `?${params.join("&")}` : "";
   return fetchJSON(`/analytics/fare-distribution${qs}`);
 }
@@ -80,22 +79,16 @@ async function fetchFareDistributionDetailed() {
   return fetchJSON("/analytics/fare-distribution-detailed");
 }
 
-async function fetchRevenueByBorough(filters = {}) {
-  const params = _analyticsFilterParams(filters);
-  const qs = params.length ? `?${params.join("&")}` : "";
-  return fetchJSON(`/analytics/revenue-by-borough${qs}`);
+async function fetchRevenueByBorough() {
+  return fetchJSON("/analytics/revenue-by-borough");
 }
 
-async function fetchRevenueTrends(filters = {}) {
-  const params = _analyticsFilterParams(filters);
-  const qs = params.length ? `?${params.join("&")}` : "";
-  return fetchJSON(`/analytics/revenue-trends${qs}`);
+async function fetchRevenueTrends() {
+  return fetchJSON("/analytics/revenue-trends");
 }
 
-async function fetchAverageFare(filters = {}) {
-  const params = _analyticsFilterParams(filters);
-  const qs = params.length ? `?${params.join("&")}` : "";
-  return fetchJSON(`/analytics/average-fare${qs}`);
+async function fetchAverageFare() {
+  return fetchJSON("/analytics/average-fare");
 }
 
 async function fetchSuspiciousRecords(limit = 100, offset = 0) {
@@ -104,20 +97,17 @@ async function fetchSuspiciousRecords(limit = 100, offset = 0) {
 
 // Analytics endpoints additional
 
-async function fetchTopDropoffZones(topN = 10, filters = {}) {
-  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
+async function fetchTopDropoffZones(topN = 10) {
   try {
-    return await fetchJSON(`/analytics/top-dropoff-zones?${params.join("&")}`);
+    return await fetchJSON(`/analytics/top-dropoff-zones?top_n=${encodeURIComponent(topN)}`);
   } catch (_) {
     return null;
   }
 }
 
-async function fetchAverageDistanceByHour(filters = {}) {
-  const params = _analyticsFilterParams(filters);
-  const qs = params.length ? `?${params.join("&")}` : "";
+async function fetchAverageDistanceByHour() {
   try {
-    return await fetchJSON(`/analytics/average-distance${qs}`);
+    return await fetchJSON("/analytics/average-distance");
   } catch (_) {
     return null;
   }
@@ -126,7 +116,7 @@ async function fetchAverageDistanceByHour(filters = {}) {
 // summary endpoint
 
 async function fetchSummary(filters = {}) {
-  const params = _analyticsFilterParams(filters);
+  const params = _dashboardFilterParams(filters);
   const qs = params.length ? `?${params.join("&")}` : "";
   const raw = await fetchJSON(`/analytics/summary${qs}`);
   return {
@@ -141,6 +131,9 @@ async function fetchSummary(filters = {}) {
     suspiciousRecords: raw.suspicious_records || 0,
     locationCount: raw.location_count || 0,
     zoneBoundaryCount: raw.zone_boundary_count || 0,
+    filtersApplied: params.length > 0,
+    filterBorough: filters.borough || null,
+    filterPickupDate: filters.pickupDate || null,
   };
 }
 

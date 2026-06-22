@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS suspicious_records (
 );
 
 -- Precomputed analytics tables. These are refreshed by the ETL after trips
--- finish loading so API startup and unfiltered dashboard requests never scan
+-- finish loading so dashboard requests never scan
 -- the full trips table.
 CREATE TABLE IF NOT EXISTS analytics_summary (
     singleton_id           INTEGER PRIMARY KEY CHECK (singleton_id = 1),
@@ -172,4 +172,39 @@ CREATE TABLE IF NOT EXISTS analytics_hourly_distance (
     trip_count            INTEGER NOT NULL,
     avg_distance          REAL,
     avg_duration_minutes  REAL
+);
+
+-- Dashboard filter cubes. These retain only the dimensions used by the
+-- dashboard filter bar, keeping interactive requests away from the trips
+-- table even when pickup date and borough are combined.
+CREATE TABLE IF NOT EXISTS analytics_dashboard_slices (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    total_trips       INTEGER NOT NULL,
+    total_revenue     REAL NOT NULL,
+    total_fare        REAL NOT NULL,
+    total_distance    REAL NOT NULL,
+    outlier_count     INTEGER NOT NULL,
+    outside_january_count INTEGER NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dashboard_pickup_zones (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    zone_id           INTEGER NOT NULL,
+    zone_name         TEXT,
+    trip_count        INTEGER NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough, zone_id)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dashboard_fare_distribution (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    bucket_order      INTEGER NOT NULL,
+    range_label       TEXT NOT NULL,
+    trip_count        INTEGER NOT NULL,
+    fare_total        REAL NOT NULL,
+    total_revenue     REAL NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough, bucket_order)
 );

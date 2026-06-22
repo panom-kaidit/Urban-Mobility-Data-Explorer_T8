@@ -1,28 +1,18 @@
-"""Analytics routes — top pickup zones, fare distribution, and aggregated summary."""
+"""Analytics routes backed by ETL-generated aggregate tables."""
 
 import sqlite3
-from datetime import datetime, timedelta
-from threading import Lock
+from datetime import date as date_type
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from backend.config.database import get_connection
-from backend.algorithms.top_zones import find_top_pickup_zones_from_database
 from backend.algorithms.merge_sort import merge_sort
+from backend.algorithms.top_zones import find_top_pickup_zones_from_database
+from backend.config.database import get_read_connection
 
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
-
-_summary_lock = Lock()
-_revenue_lock = Lock()
-_fare_lock = Lock()
-_average_fare_lock = Lock()
-_trend_lock = Lock()
-_distance_lock = Lock()
-_top_pickup_zones_lock = Lock()
-_top_dropoff_zones_lock = Lock()
 
 
 class SummaryResponse(BaseModel):
@@ -41,108 +31,106 @@ class SummaryResponse(BaseModel):
 
 def get_db():
     """Open one SQLite connection for a request, then close it."""
-    connection = get_connection()
+    connection = get_read_connection()
     try:
         yield connection
     finally:
         connection.close()
 
 
-def _build_filters(borough=None, date=None, distance=None, fare=None):
-    """Return (conditions, params) for optional trip-table filters, matching trips.py logic."""
+def _dashboard_where(borough: Optional[str], pickup_date: Optional[str]):
+    """Build predicates for the small dashboard aggregate tables."""
     conditions = []
     params = []
+
     if borough:
-        conditions.append("(pickup_borough = ? OR dropoff_borough = ?)")
-        params.extend([borough, borough])
-    if distance is not None:
-        conditions.append("trip_distance <= ?")
-        params.append(distance)
-    if fare is not None:
-        conditions.append("total_amount <= ?")
-        params.append(fare)
-    if date:
+        conditions.append("pickup_borough = ?")
+        params.append(borough)
+
+    if pickup_date:
         try:
-            next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+            date_type.fromisoformat(pickup_date)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-        conditions.append("pickup_datetime >= ? AND pickup_datetime < ?")
-        params.extend([date, next_day])
-    return conditions, params
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid pickup_date. Use YYYY-MM-DD.",
+            )
+        conditions.append("pickup_date = ?")
+        params.append(pickup_date)
+
+    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+    return where, params
+
+
+@router.get("/dashboard-filter-options")
+def get_dashboard_filter_options(db: sqlite3.Connection = Depends(get_db)):
+    """Return valid pickup boroughs and dates from the dashboard cube."""
+    try:
+        boroughs = db.execute("""
+            SELECT DISTINCT pickup_borough
+            FROM analytics_dashboard_slices
+            WHERE pickup_borough NOT IN ('Unknown', 'N/A')
+            ORDER BY pickup_borough
+        """).fetchall()
+        dates = db.execute("""
+            SELECT DISTINCT pickup_date
+            FROM analytics_dashboard_slices
+            ORDER BY pickup_date
+        """).fetchall()
+        return {
+            "boroughs": [row[0] for row in boroughs],
+            "pickup_dates": [row[0] for row in dates],
+        }
+    except Exception:
+        raise HTTPException(status_code=500, detail="Dashboard filters unavailable")
 
 
 @router.get("/summary", response_model=SummaryResponse)
 def get_summary(
     borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
+    pickup_date: Optional[str] = Query(default=None),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Return a single-row aggregate summary."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _summary_lock:
-            try:
-                row = db.execute("""
-                    SELECT
-                        total_trips, total_revenue, average_fare,
-                        average_distance, start_date, end_date,
-                        outlier_count, outside_january_count,
-                        suspicious_records, location_count, zone_boundary_count
-                    FROM analytics_summary
-                    WHERE singleton_id = 1
-                """).fetchone()
-                result: dict = dict(row)
-                result["total_trips"]           = int(result.get("total_trips") or 0)
-                result["total_revenue"]         = float(result.get("total_revenue") or 0)
-                result["average_fare"]          = float(result.get("average_fare") or 0)
-                result["average_distance"]      = float(result.get("average_distance") or 0)
-                result["outlier_count"]         = int(result.get("outlier_count") or 0)
-                result["outside_january_count"] = int(result.get("outside_january_count") or 0)
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Summary data unavailable")
-
-    # Filtered requests require the source table because aggregates are unfiltered.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+    """Return the dataset summary."""
     try:
-        row = db.execute(f"""
+        if borough or pickup_date:
+            where, params = _dashboard_where(borough, pickup_date)
+            row = db.execute(f"""
+                SELECT
+                    COALESCE(SUM(total_trips), 0) AS total_trips,
+                    COALESCE(ROUND(SUM(total_revenue), 2), 0.0) AS total_revenue,
+                    COALESCE(ROUND(SUM(total_fare) / NULLIF(SUM(total_trips), 0), 2), 0.0)
+                        AS average_fare,
+                    COALESCE(ROUND(SUM(total_distance) / NULLIF(SUM(total_trips), 0), 2), 0.0)
+                        AS average_distance,
+                    MIN(pickup_date) AS start_date,
+                    MAX(pickup_date) AS end_date,
+                    COALESCE(SUM(outlier_count), 0) AS outlier_count,
+                    COALESCE(SUM(outside_january_count), 0) AS outside_january_count
+                FROM analytics_dashboard_slices{where}
+            """, params).fetchone()
+            metadata = db.execute("""
+                SELECT suspicious_records, location_count, zone_boundary_count
+                FROM analytics_summary WHERE singleton_id = 1
+            """).fetchone()
+            if metadata is None:
+                raise HTTPException(status_code=503, detail="Summary data unavailable")
+            result = dict(row)
+            result.update(dict(metadata))
+            return result
+
+        row = db.execute("""
             SELECT
-                COUNT(*) AS total_trips,
-                COALESCE(ROUND(SUM(total_amount), 2), 0.0)    AS total_revenue,
-                COALESCE(ROUND(AVG(fare_amount), 2), 0.0)     AS average_fare,
-                COALESCE(ROUND(AVG(trip_distance), 2), 0.0)   AS average_distance,
-                MIN(SUBSTR(pickup_datetime, 1, 10))            AS start_date,
-                MAX(SUBSTR(pickup_datetime, 1, 10))            AS end_date,
-                COALESCE(SUM(CASE WHEN is_outlier = 1 THEN 1 ELSE 0 END), 0)
-                                                               AS outlier_count,
-                COALESCE(SUM(CASE WHEN SUBSTR(pickup_datetime,1,10) < '2019-01-01'
-                                       OR SUBSTR(pickup_datetime,1,10) > '2019-01-31'
-                              THEN 1 ELSE 0 END), 0)           AS outside_january_count
-            FROM trips {where}
-        """, params).fetchone()
-        result: dict = dict(row)
-        result["total_trips"]           = int(result.get("total_trips") or 0)
-        result["total_revenue"]         = float(result.get("total_revenue") or 0)
-        result["average_fare"]          = float(result.get("average_fare") or 0)
-        result["average_distance"]      = float(result.get("average_distance") or 0)
-        result["outlier_count"]         = int(result.get("outlier_count") or 0)
-        result["outside_january_count"] = int(result.get("outside_january_count") or 0)
-        # suspicious_records / location_count / zone_boundary_count are dataset-level
-        # metadata, not trip rows — they are always returned unfiltered.
-        result["suspicious_records"] = int(db.execute(
-            "SELECT COUNT(*) FROM suspicious_records"
-        ).fetchone()[0] or 0)
-        result["location_count"] = int(db.execute(
-            "SELECT COUNT(*) FROM locations"
-        ).fetchone()[0] or 0)
-        result["zone_boundary_count"] = int(db.execute(
-            "SELECT COUNT(*) FROM zone_boundaries"
-        ).fetchone()[0] or 0)
-        return result
+                total_trips, total_revenue, average_fare,
+                average_distance, start_date, end_date,
+                outlier_count, outside_january_count,
+                suspicious_records, location_count, zone_boundary_count
+            FROM analytics_summary
+            WHERE singleton_id = 1
+        """).fetchone()
+        if row is None:
+            raise HTTPException(status_code=503, detail="Summary data unavailable")
+        return dict(row)
     except HTTPException:
         raise
     except Exception:
@@ -153,42 +141,27 @@ def get_summary(
 def get_top_pickup_zones(
     top_n: int = Query(default=10, ge=1, le=265),
     borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
+    pickup_date: Optional[str] = Query(default=None),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _top_pickup_zones_lock:
-            try:
-                zones = find_top_pickup_zones_from_database(db, top_n)
-                result = {"algorithm": "merge_sort", "top_n": top_n, "zones": zones}
-                return result
-            except Exception:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Pickup zone data unavailable"
-                )
-
-    # Filtered path — run GROUP BY with filter conditions, then merge_sort.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["pu_location_id IS NOT NULL"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+    """Return the top pickup zones."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                pu_location_id AS zone_id,
-                pickup_zone    AS zone_name,
-                pickup_borough AS borough,
-                COUNT(*)       AS trip_count
-            FROM trips {where}
-            GROUP BY pu_location_id
-        """, params).fetchall()
-        zone_list = [dict(r) for r in rows]
-        sorted_zones = merge_sort(zone_list, "trip_count", descending=True)
-        return {"algorithm": "merge_sort", "top_n": top_n, "zones": sorted_zones[:top_n]}
+        if borough or pickup_date:
+            where, params = _dashboard_where(borough, pickup_date)
+            rows = db.execute(f"""
+                SELECT zone_id, MIN(zone_name) AS zone_name,
+                       MIN(pickup_borough) AS borough,
+                       SUM(trip_count) AS trip_count
+                FROM analytics_dashboard_pickup_zones{where}
+                GROUP BY zone_id
+            """, params).fetchall()
+            zones = merge_sort(
+                [dict(row) for row in rows], "trip_count", descending=True
+            )[:top_n]
+            return {"algorithm": "merge_sort", "top_n": top_n, "zones": zones}
+
+        zones = find_top_pickup_zones_from_database(db, top_n)
+        return {"algorithm": "merge_sort", "top_n": top_n, "zones": zones}
     except HTTPException:
         raise
     except Exception:
@@ -197,50 +170,18 @@ def get_top_pickup_zones(
 
 @router.get("/top-dropoff-zones")
 def get_top_dropoff_zones(
-    top_n: int = Query(default=10, ge=1, le=265, description="Number of top dropoff zones to return"),
-    borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
+    top_n: int = Query(default=10, ge=1, le=265),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Return the top N dropoff zones by trip count."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _top_dropoff_zones_lock:
-            try:
-                rows = db.execute("""
-                    SELECT
-                        zone_id, zone_name, borough, trip_count
-                    FROM analytics_dropoff_zones
-                    ORDER BY trip_count DESC
-                    LIMIT ?
-                """, (top_n,)).fetchall()
-                result = {"top_n": top_n, "zones": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Dropoff zone data unavailable")
-
-    # Filtered path — adds filter conditions to the WHERE clause.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["dropoff_zone IS NOT NULL"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+    """Return the top dropoff zones."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                do_location_id  AS zone_id,
-                MIN(dropoff_zone)    AS zone_name,
-                MIN(dropoff_borough) AS borough,
-                COUNT(*)        AS trip_count
-            FROM trips {where}
-            GROUP BY do_location_id
+        rows = db.execute("""
+            SELECT zone_id, zone_name, borough, trip_count
+            FROM analytics_dropoff_zones
             ORDER BY trip_count DESC
             LIMIT ?
-        """, params + [top_n]).fetchall()
-        return {"top_n": top_n, "zones": [dict(r) for r in rows]}
-    except HTTPException:
-        raise
+        """, (top_n,)).fetchall()
+        return {"top_n": top_n, "zones": [dict(row) for row in rows]}
     except Exception:
         raise HTTPException(status_code=500, detail="Dropoff zone data unavailable")
 
@@ -248,51 +189,32 @@ def get_top_dropoff_zones(
 @router.get("/fare-distribution")
 def get_fare_distribution(
     borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
+    pickup_date: Optional[str] = Query(default=None),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Return distribution of fares across price ranges."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _fare_lock:
-            try:
-                rows = db.execute("""
-                    SELECT range_label AS range, trip_count, avg_fare, total_revenue
-                    FROM analytics_fare_distribution
-                    WHERE trip_count > 0
-                    ORDER BY bucket_order
-                """).fetchall()
-                result = {"distribution": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Fare data unavailable")
-
-    # Filtered path — CASE WHEN avoids repeating params once per UNION ALL branch.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    extra = (" AND " + " AND ".join(conditions)) if conditions else ""
+    """Return the fare distribution."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                CASE
-                    WHEN fare_amount >= 0  AND fare_amount < 10  THEN '0-10'
-                    WHEN fare_amount >= 10 AND fare_amount < 20  THEN '10-20'
-                    WHEN fare_amount >= 20 AND fare_amount < 30  THEN '20-30'
-                    WHEN fare_amount >= 30 AND fare_amount < 40  THEN '30-40'
-                    WHEN fare_amount >= 40 AND fare_amount < 50  THEN '40-50'
-                    ELSE '50+'
-                END AS range,
-                COUNT(*)                    AS trip_count,
-                ROUND(AVG(fare_amount), 2)  AS avg_fare,
-                ROUND(SUM(total_amount), 2) AS total_revenue
-            FROM trips
-            WHERE fare_amount > 0{extra}
-            GROUP BY range
-            ORDER BY MIN(fare_amount)
-        """, params).fetchall()
-        return {"distribution": [dict(r) for r in rows]}
+        if borough or pickup_date:
+            where, params = _dashboard_where(borough, pickup_date)
+            rows = db.execute(f"""
+                SELECT range_label AS range,
+                       SUM(trip_count) AS trip_count,
+                       ROUND(SUM(fare_total) / NULLIF(SUM(trip_count), 0), 2) AS avg_fare,
+                       ROUND(SUM(total_revenue), 2) AS total_revenue
+                FROM analytics_dashboard_fare_distribution{where}
+                GROUP BY bucket_order, range_label
+                HAVING SUM(trip_count) > 0
+                ORDER BY bucket_order
+            """, params).fetchall()
+            return {"distribution": [dict(row) for row in rows]}
+
+        rows = db.execute("""
+            SELECT range_label AS range, trip_count, avg_fare, total_revenue
+            FROM analytics_fare_distribution
+            WHERE trip_count > 0
+            ORDER BY bucket_order
+        """).fetchall()
+        return {"distribution": [dict(row) for row in rows]}
     except HTTPException:
         raise
     except Exception:
@@ -300,195 +222,57 @@ def get_fare_distribution(
 
 
 @router.get("/revenue-by-borough")
-def get_revenue_by_borough(
-    borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
-    db: sqlite3.Connection = Depends(get_db),
-):
-    """Return total revenue grouped by pickup borough, ordered highest first."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _revenue_lock:
-            try:
-                rows = db.execute("""
-                    SELECT borough, total_trips, total_revenue, avg_revenue_per_trip
-                    FROM analytics_borough_revenue
-                    ORDER BY total_revenue DESC
-                """).fetchall()
-                result = {"boroughs": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Borough revenue data unavailable")
-
-    # Filtered path.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["pickup_borough IS NOT NULL", "pickup_borough != 'Unknown'"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+def get_revenue_by_borough(db: sqlite3.Connection = Depends(get_db)):
+    """Return revenue grouped by pickup borough."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                pickup_borough              AS borough,
-                COUNT(*)                    AS total_trips,
-                ROUND(SUM(total_amount), 2) AS total_revenue,
-                ROUND(AVG(total_amount), 2) AS avg_revenue_per_trip
-            FROM trips {where}
-            GROUP BY pickup_borough
+        rows = db.execute("""
+            SELECT borough, total_trips, total_revenue, avg_revenue_per_trip
+            FROM analytics_borough_revenue
             ORDER BY total_revenue DESC
-        """, params).fetchall()
-        return {"boroughs": [dict(r) for r in rows]}
-    except HTTPException:
-        raise
+        """).fetchall()
+        return {"boroughs": [dict(row) for row in rows]}
     except Exception:
         raise HTTPException(status_code=500, detail="Borough revenue data unavailable")
 
 
 @router.get("/revenue-trends")
-def get_revenue_trends(
-    borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
-    db: sqlite3.Connection = Depends(get_db),
-):
-    """Return daily revenue trend across the dataset's date range."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _trend_lock:
-            try:
-                rows = db.execute("""
-                    SELECT date, total_trips, total_revenue, avg_fare
-                    FROM analytics_daily_revenue
-                    ORDER BY date ASC
-                """).fetchall()
-                result = {"trend": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Revenue trend data unavailable")
-
-    # Filtered path.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["pickup_datetime IS NOT NULL"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+def get_revenue_trends(db: sqlite3.Connection = Depends(get_db)):
+    """Return daily revenue totals."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                SUBSTR(pickup_datetime, 1, 10) AS date,
-                COUNT(*)                        AS total_trips,
-                ROUND(SUM(total_amount), 2)     AS total_revenue,
-                ROUND(AVG(total_amount), 2)     AS avg_fare
-            FROM trips {where}
-            GROUP BY SUBSTR(pickup_datetime, 1, 10)
+        rows = db.execute("""
+            SELECT date, total_trips, total_revenue, avg_fare
+            FROM analytics_daily_revenue
             ORDER BY date ASC
-        """, params).fetchall()
-        return {"trend": [dict(r) for r in rows]}
-    except HTTPException:
-        raise
+        """).fetchall()
+        return {"trend": [dict(row) for row in rows]}
     except Exception:
         raise HTTPException(status_code=500, detail="Revenue trend data unavailable")
 
 
 @router.get("/average-fare")
-def get_average_fare(
-    borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
-    db: sqlite3.Connection = Depends(get_db),
-):
-    """Return average fare, tip, and total broken down by borough and payment method."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _average_fare_lock:
-            try:
-                rows = db.execute("""
-                    SELECT
-                        borough, payment_method, total_trips,
-                        avg_fare, avg_tip, avg_total
-                    FROM analytics_average_fare
-                    ORDER BY borough, total_trips DESC
-                """).fetchall()
-                result = {"fares": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Average fare data unavailable")
-
-    # Filtered path.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["pickup_borough IS NOT NULL", "pickup_borough != 'Unknown'", "fare_amount > 0"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+def get_average_fare(db: sqlite3.Connection = Depends(get_db)):
+    """Return average fare metrics by borough and payment method."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                pickup_borough              AS borough,
-                CASE payment_type
-                    WHEN 1 THEN 'Credit Card'
-                    WHEN 2 THEN 'Cash'
-                    WHEN 3 THEN 'No Charge'
-                    WHEN 4 THEN 'Dispute'
-                    ELSE 'Other'
-                END                         AS payment_method,
-                COUNT(*)                    AS total_trips,
-                ROUND(AVG(fare_amount), 2)  AS avg_fare,
-                ROUND(AVG(tip_amount), 2)   AS avg_tip,
-                ROUND(AVG(total_amount), 2) AS avg_total
-            FROM trips {where}
-            GROUP BY pickup_borough, payment_type
-            ORDER BY pickup_borough, total_trips DESC
-        """, params).fetchall()
-        return {"fares": [dict(r) for r in rows]}
-    except HTTPException:
-        raise
+        rows = db.execute("""
+            SELECT borough, payment_method, total_trips,
+                   avg_fare, avg_tip, avg_total
+            FROM analytics_average_fare
+            ORDER BY borough, total_trips DESC
+        """).fetchall()
+        return {"fares": [dict(row) for row in rows]}
     except Exception:
         raise HTTPException(status_code=500, detail="Average fare data unavailable")
 
 
 @router.get("/average-distance")
-def get_average_distance(
-    borough: Optional[str] = Query(default=None),
-    date: Optional[str] = Query(default=None),
-    distance: Optional[float] = Query(default=None, ge=0),
-    fare: Optional[float] = Query(default=None, ge=0),
-    db: sqlite3.Connection = Depends(get_db),
-):
-    """Return average trip distance and duration grouped by pickup hour."""
-    is_filtered = any([borough, date, distance is not None, fare is not None])
-
-    if not is_filtered:
-        with _distance_lock:
-            try:
-                rows = db.execute("""
-                    SELECT
-                        hour, trip_count, avg_distance, avg_duration_minutes
-                    FROM analytics_hourly_distance
-                    ORDER BY hour ASC
-                """).fetchall()
-                result = {"distances": [dict(r) for r in rows]}
-                return result
-            except Exception:
-                raise HTTPException(status_code=500, detail="Distance data unavailable")
-
-    # Filtered path.
-    conditions, params = _build_filters(borough, date, distance, fare)
-    all_conditions = ["pickup_hour IS NOT NULL", "trip_distance > 0"] + conditions
-    where = "WHERE " + " AND ".join(all_conditions)
+def get_average_distance(db: sqlite3.Connection = Depends(get_db)):
+    """Return hourly trip-distance metrics."""
     try:
-        rows = db.execute(f"""
-            SELECT
-                pickup_hour                          AS hour,
-                COUNT(*)                             AS trip_count,
-                ROUND(AVG(trip_distance), 2)         AS avg_distance,
-                ROUND(AVG(trip_duration_minutes), 1) AS avg_duration_minutes
-            FROM trips {where}
-            GROUP BY pickup_hour
-            ORDER BY pickup_hour ASC
-        """, params).fetchall()
-        return {"distances": [dict(r) for r in rows]}
-    except HTTPException:
-        raise
+        rows = db.execute("""
+            SELECT hour, trip_count, avg_distance, avg_duration_minutes
+            FROM analytics_hourly_distance
+            ORDER BY hour ASC
+        """).fetchall()
+        return {"distances": [dict(row) for row in rows]}
     except Exception:
         raise HTTPException(status_code=500, detail="Distance data unavailable")

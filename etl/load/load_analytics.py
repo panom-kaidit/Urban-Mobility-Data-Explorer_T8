@@ -1,4 +1,4 @@
-"""Build the small aggregate tables used by unfiltered analytics endpoints."""
+"""Build the small aggregate tables used by analytics endpoints."""
 
 from backend.config.database import get_connection
 
@@ -12,6 +12,9 @@ AGGREGATE_TABLES = (
     "analytics_daily_revenue",
     "analytics_average_fare",
     "analytics_hourly_distance",
+    "analytics_dashboard_slices",
+    "analytics_dashboard_pickup_zones",
+    "analytics_dashboard_fare_distribution",
 )
 
 
@@ -132,6 +135,71 @@ def refresh_analytics(connection=None) -> None:
             FROM trips
             WHERE pickup_hour IS NOT NULL AND trip_distance > 0
             GROUP BY pickup_hour
+        """)
+
+        conn.execute("""
+            INSERT INTO analytics_dashboard_slices
+            SELECT
+                SUBSTR(pickup_datetime, 1, 10),
+                COALESCE(pickup_borough, 'Unknown'),
+                COUNT(*),
+                COALESCE(SUM(total_amount), 0.0),
+                COALESCE(SUM(fare_amount), 0.0),
+                COALESCE(SUM(trip_distance), 0.0),
+                COALESCE(SUM(CASE WHEN is_outlier = 1 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE
+                    WHEN SUBSTR(pickup_datetime, 1, 10) < '2019-01-01'
+                      OR SUBSTR(pickup_datetime, 1, 10) > '2019-01-31'
+                    THEN 1 ELSE 0 END), 0)
+            FROM trips
+            GROUP BY SUBSTR(pickup_datetime, 1, 10),
+                     COALESCE(pickup_borough, 'Unknown')
+        """)
+
+        conn.execute("""
+            INSERT INTO analytics_dashboard_pickup_zones
+            SELECT
+                SUBSTR(pickup_datetime, 1, 10),
+                COALESCE(pickup_borough, 'Unknown'),
+                pu_location_id,
+                MIN(pickup_zone),
+                COUNT(*)
+            FROM trips
+            WHERE pu_location_id IS NOT NULL
+            GROUP BY SUBSTR(pickup_datetime, 1, 10),
+                     COALESCE(pickup_borough, 'Unknown'),
+                     pu_location_id
+        """)
+
+        conn.execute("""
+            INSERT INTO analytics_dashboard_fare_distribution
+            SELECT
+                SUBSTR(pickup_datetime, 1, 10),
+                COALESCE(pickup_borough, 'Unknown'),
+                CASE
+                    WHEN fare_amount < 10 THEN 1
+                    WHEN fare_amount < 20 THEN 2
+                    WHEN fare_amount < 30 THEN 3
+                    WHEN fare_amount < 40 THEN 4
+                    WHEN fare_amount < 50 THEN 5
+                    ELSE 6
+                END,
+                CASE
+                    WHEN fare_amount < 10 THEN '0-10'
+                    WHEN fare_amount < 20 THEN '10-20'
+                    WHEN fare_amount < 30 THEN '20-30'
+                    WHEN fare_amount < 40 THEN '30-40'
+                    WHEN fare_amount < 50 THEN '40-50'
+                    ELSE '50+'
+                END,
+                COUNT(*),
+                COALESCE(SUM(fare_amount), 0.0),
+                COALESCE(SUM(total_amount), 0.0)
+            FROM trips
+            WHERE fare_amount > 0
+            GROUP BY SUBSTR(pickup_datetime, 1, 10),
+                     COALESCE(pickup_borough, 'Unknown'),
+                     3, 4
         """)
 
         conn.commit()

@@ -25,8 +25,9 @@
   .navbar-toggle { display: flex; }
 
   .cards-grid   { grid-template-columns: repeat(2, 1fr); }
-  .filters-grid { grid-template-columns: repeat(2, 1fr); }
   .charts-grid  { grid-template-columns: 1fr; }
+  .dashboard-filters { flex-wrap: wrap; }
+  .dashboard-filter-status { width: 100%; margin-left: 0; padding-bottom: 0; }
 
   .dq-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .report-grid   { grid-template-columns: 1fr 1fr; }
@@ -38,12 +39,11 @@
   .content-inner  { padding: 1rem; }
   .cards-grid     { grid-template-columns: 1fr; }
   .dq-stats-grid  { grid-template-columns: 1fr; }
-  .filters-grid   { grid-template-columns: 1fr; }
   .report-grid    { grid-template-columns: 1fr; }
+  .dashboard-filter-group { width: 100%; min-width: 0; }
+  .dashboard-filter-reset { width: 100%; }
 
   .page-title           { font-size: 1.2rem; }
-  .filters-actions      { flex-direction: column; }
-  .filters-actions .btn { width: 100%; justify-content: center; }
   .navbar-date          { display: none; }
   .stat-card-value      { font-size: 1.4rem; }
   .navbar               { padding: 0 1rem; }
