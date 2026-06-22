@@ -6,17 +6,17 @@ var SIDEBAR_LINKS = [
   {
     section: "Analytics",
     links: [
-      { id: "dashboard",    href: "dashboard.html",    icon: '<i class="fa-solid fa-chart-line"></i>',       label: "Dashboard" },
-      { id: "revenue",      href: "revenue.html",      icon: '<i class="fa-solid fa-dollar-sign"></i>',      label: "Revenue" },
-      { id: "mobility",     href: "mobility.html",     icon: '<i class="fa-solid fa-route"></i>',            label: "Mobility" },
-      { id: "zones",        href: "zones.html",        icon: '<i class="fa-solid fa-map-location-dot"></i>', label: "Zone Intelligence" },
+      { id: "dashboard",    href: "/dashboard",    icon: '<i class="fa-solid fa-chart-line"></i>',       label: "Dashboard" },
+      { id: "revenue",      href: "/revenue",      icon: '<i class="fa-solid fa-dollar-sign"></i>',      label: "Revenue" },
+      { id: "mobility",     href: "/mobility",     icon: '<i class="fa-solid fa-route"></i>',            label: "Mobility" },
+      { id: "zones",        href: "/zones",        icon: '<i class="fa-solid fa-map-location-dot"></i>', label: "Zone Intelligence" },
     ],
   },
   {
     section: "Operations",
     links: [
-      { id: "data-quality", href: "data_quality.html", icon: '<i class="fa-solid fa-shield-halved"></i>',   label: "Data Quality" },
-      { id: "reports",      href: "reports.html",      icon: '<i class="fa-solid fa-file-lines"></i>',      label: "Reports" },
+      { id: "data-quality", href: "/data-quality", icon: '<i class="fa-solid fa-shield-halved"></i>',   label: "Data Quality" },
+      { id: "reports",      href: "/reports",      icon: '<i class="fa-solid fa-file-lines"></i>',      label: "Reports" },
     ],
   },
 ];
@@ -49,7 +49,7 @@ function injectSidebar(activePage) {
   aside.setAttribute("aria-label", "Main navigation");
   aside.innerHTML = `
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon"><img src="../assets/images/logo.png" alt="logo"></div>
+      <div class="sidebar-logo-icon"><img src="/assets/images/logo.png" alt="logo"></div>
       <div class="sidebar-logo-text">
         Urban Mobility
         <span>Data Explorer T8</span>
