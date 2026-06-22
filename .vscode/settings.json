@@ -1,0 +1,19 @@
+{
+  "files.watcherExclude": {
+    "**/data/**": true,
+    "**/__pycache__/**": true,
+    "**/*.pyc": true,
+    "**/*.db-wal": true,
+    "**/*.db-shm": true,
+    "**/*.db-journal": true
+  },
+  "liveServer.settings.ignoreFiles": [
+    "**/data/**",
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.db",
+    "**/*.db-wal",
+    "**/*.db-shm",
+    "**/*.db-journal"
+  ]
+}

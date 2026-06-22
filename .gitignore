@@ -1,2 +1,9 @@
 *.parquet
 *.csv
+
+# Runtime database sidecars and Python bytecode must not be watched or tracked.
+*.db-wal
+*.db-shm
+*.db-journal
+__pycache__/
+*.py[cod]

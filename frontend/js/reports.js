@@ -17,7 +17,8 @@ async function initReportsPage() {
   setNavbarTitle("Reports");
 
   _renderSummaryTable(null);  // Show loading state immediately
-  _loadReportContext();       // Fire all independent loaders — don't await
+  await _loadReportContextTogether();
+  showApp();
 }
 
 function _loadReportContext() {
@@ -43,7 +44,7 @@ function _loadReportContext() {
     }
   }
 
-  // Summary renders as soon as it arrives — usually fast due to backend cache.
+  // Render the summary as soon as it arrives.
   fetchSummary().then(function(summary) {
     _reportContext.summary = summary;
     _renderSummaryTable(summary);
@@ -75,6 +76,48 @@ function _loadReportContext() {
   }).catch(function() { _onError(); });
 }
 
+async function _loadReportContextTogether() {
+  var badge = document.getElementById("reports-summary-badge");
+  if (badge) {
+    badge.textContent = "Loading...";
+    badge.className = "badge badge-cyan";
+  }
+
+  var results = await Promise.allSettled([
+    fetchSummary(),
+    fetchTopPickupZones(10),
+    fetchTopDropoffZones(10),
+    fetchRevenueByBorough(),
+    fetchRevenueTrends(),
+  ]);
+
+  function value(index) {
+    return results[index].status === "fulfilled" ? results[index].value : null;
+  }
+
+  var summary = value(0);
+  var pickup = value(1);
+  var dropoff = value(2);
+  var boroughs = value(3);
+  var trend = value(4);
+
+  _reportContext.summary = summary;
+  _reportContext.topPickupZones = pickup && pickup.zones ? pickup.zones : [];
+  _reportContext.topDropoffZones = dropoff && dropoff.zones ? dropoff.zones : [];
+  _reportContext.revenueByBorough = boroughs && boroughs.boroughs ? boroughs.boroughs : [];
+  _reportContext.revenueTrend = trend && trend.trend ? trend.trend : [];
+
+  if (summary) _renderSummaryTable(summary);
+
+  var complete = results.every(function(result) {
+    return result.status === "fulfilled";
+  });
+  if (badge) {
+    badge.textContent = complete ? "Live Data" : "Partial Data";
+    badge.className = complete ? "badge badge-green" : "badge badge-yellow";
+  }
+}
+
 function _renderSummaryTable(summary) {
   var tbody = document.getElementById("reports-data-tbody");
   if (!tbody) return;
@@ -96,6 +139,22 @@ function _renderSummaryTable(summary) {
 
 function _buildLiveSummaryRows(summary) {
   var loadedTrips = Number(summary.totalTrips || 0);
+  if (summary.filtersApplied) {
+    var scope = [];
+    if (summary.filterBorough) scope.push(summary.filterBorough + " pickups");
+    if (summary.filterPickupDate) scope.push(summary.filterPickupDate);
+    var scopeNote = "Dashboard selection: " + scope.join(" and ") + ".";
+
+    return [
+      { metric: "Matching Trips", value: formatNumber(loadedTrips), notes: scopeNote },
+      { metric: "Total Revenue", value: formatCurrency(summary.totalRevenue), notes: "Revenue from trips in the current selection." },
+      { metric: "Average Fare", value: "$" + formatDecimal(summary.avgFare, 2), notes: "Average fare_amount in the current selection." },
+      { metric: "Average Distance", value: formatDecimal(summary.avgDistance, 2) + " mi", notes: "Average trip_distance in the current selection." },
+      { metric: "Pickup Date", value: _formatDateRange(summary), notes: "Pickup date represented by the current selection." },
+      { metric: "Outliers Kept", value: formatNumber(summary.outlierCount), notes: "Matching trips flagged as outliers but retained." },
+    ];
+  }
+
   var loadedPercent = _rawParquetRows ? ((loadedTrips / _rawParquetRows) * 100).toFixed(1) + "%" : "n/a";
   var rejectionRate = loadedTrips
     ? ((Number(summary.suspiciousRecords || 0) / (loadedTrips + Number(summary.suspiciousRecords || 0))) * 100).toFixed(2) + "%"
@@ -115,7 +174,6 @@ function _buildLiveSummaryRows(summary) {
     { metric: "Outliers Kept", value: formatNumber(summary.outlierCount), notes: "Rows flagged as outliers but retained for analysis." },
     { metric: "Taxi Zones", value: formatNumber(summary.locationCount), notes: "Location lookup records." },
     { metric: "Zone Boundaries", value: formatNumber(summary.zoneBoundaryCount), notes: "GeoJSON boundaries loaded for map rendering." },
-    { metric: "API Endpoints", value: "11+", notes: "Includes summary, pickup/dropoff zones, fare, revenue, trips, locations, and suspicious records." },
   ];
 }
 
@@ -149,7 +207,7 @@ function _getReports() {
       sections: [
         { heading: "Borough Revenue", body: topBoroughText },
         { heading: "Loaded Revenue Base", body: "All revenue calculations on this page come from the current SQLite database, so they will change after a full ETL reload." },
-        { heading: "Daily Trend", body: "The API currently returns " + formatNumber(_reportContext.revenueTrend.length) + " daily revenue points." },
+        { heading: "Daily Trend", body: formatNumber(_reportContext.revenueTrend.length) + " daily revenue points are available." },
       ],
     },
     zones: {
@@ -173,7 +231,7 @@ function _getReports() {
       sections: [
         { heading: "Pickup vs. Dropoff Demand", body: "Top pickup zones: " + topPickup + ". Top dropoff zones: " + topDropoff + "." },
         { heading: "Borough Flow", body: "The current data is strongly Manhattan-heavy, which may reflect the partial database load. Re-run the full ETL before treating borough share as final." },
-        { heading: "Implemented Analytics", body: "Top dropoff zones and average distance by hour are implemented in the backend and available through the shared API client." },
+        { heading: "Hourly Distance", body: "Average trip distance is available by pickup hour." },
       ],
     },
   };
@@ -223,8 +281,5 @@ document.addEventListener("DOMContentLoaded", function() {
   // table population only — no sidebar override, no duplicate API calls.
   if (document.getElementById("report-cards")) {
     initReportsPage();
-  } else if (document.getElementById("reports-data-tbody")) {
-    _renderSummaryTable(null);
-    fetchSummary().then(function(s) { _renderSummaryTable(s); }).catch(function() {});
   }
 });

@@ -21,11 +21,55 @@
     <main class="main-content" id="main-content">
       <div class="content-inner">
 
+        <section class="dashboard-filters" aria-label="Dashboard filters">
+          <div class="dashboard-filter-group">
+            <label for="dashboard-borough-filter">Pickup borough</label>
+            <select id="dashboard-borough-filter" class="dashboard-filter-control">
+              <option value="">All boroughs</option>
+            </select>
+          </div>
+          <div class="dashboard-filter-group">
+            <label for="dashboard-date-filter">Pickup date</label>
+            <select id="dashboard-date-filter" class="dashboard-filter-control">
+              <option value="">All dates</option>
+            </select>
+          </div>
+          <button id="dashboard-filter-reset" class="dashboard-filter-reset" type="button" disabled>
+            Reset filters
+          </button>
+          <span id="dashboard-filter-status" class="dashboard-filter-status" aria-live="polite">
+            All January 2019 trips
+          </span>
+        </section>
+
         <!-- KPI cards (rendered by cards.js) -->
         <div class="cards-grid" id="stats-cards"></div>
 
-        <!-- Filters panel (rendered by filters.js) -->
-        <div id="filters-container"></div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Top Pickup Zones</div>
+                <div class="chart-card-subtitle">Top 10 zones by trip volume</div>
+              </div>
+            </div>
+            <div class="chart-container" id="zones-chart-container">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">Fare Distribution</div>
+                <div class="chart-card-subtitle">Trips grouped by fare range</div>
+              </div>
+            </div>
+            <div class="chart-container" id="fare-chart-container">
+              <div class="chart-placeholder"><div class="loading-spinner"></div></div>
+            </div>
+          </div>
+        </div>
 
         <!-- Summary data table -->
         <div class="summary-table-panel" id="reports-summary-table">
@@ -52,8 +96,6 @@
           </div>
         </div>
 
-        </div><!-- .charts-grid -->
-
       </div><!-- .content-inner -->
     </main>
 
@@ -65,7 +107,7 @@
   <script defer src="../components/cards.js"></script>
   <script defer src="../components/navbar.js"></script>
   <script defer src="../components/sidebar.js"></script>
-  <script defer src="../js/filters.js"></script>
+  <script defer src="../js/router.js"></script>
   <script defer src="../js/dashboard.js"></script>
   <script defer src="../js/reports.js"></script>
 

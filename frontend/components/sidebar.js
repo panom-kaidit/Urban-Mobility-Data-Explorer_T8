@@ -22,6 +22,15 @@ var SIDEBAR_LINKS = [
 ];
 
 function injectSidebar(activePage) {
+  var existing = document.getElementById("sidebar");
+  if (existing) {
+    existing.querySelectorAll(".sidebar-link").forEach(function(link) {
+      var pageName = link.getAttribute("href").replace(".html", "").replace(/_/g, "-");
+      link.classList.toggle("active", pageName === activePage);
+    });
+    return;
+  }
+
   var linksHtml = "";
 
   SIDEBAR_LINKS.forEach(function(section) {

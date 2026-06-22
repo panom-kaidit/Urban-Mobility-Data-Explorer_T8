@@ -101,3 +101,119 @@ CREATE TABLE IF NOT EXISTS suspicious_records (
     removal_reason                TEXT NOT NULL,
     flagged_at                     TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Precomputed analytics tables. These are refreshed by the ETL after trips
+-- finish loading so dashboard requests never scan
+-- the full trips table.
+CREATE TABLE IF NOT EXISTS analytics_summary (
+    singleton_id           INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+    total_trips            INTEGER NOT NULL,
+    total_revenue          REAL NOT NULL,
+    average_fare           REAL NOT NULL,
+    average_distance       REAL NOT NULL,
+    start_date             TEXT,
+    end_date               TEXT,
+    outlier_count          INTEGER NOT NULL,
+    outside_january_count  INTEGER NOT NULL,
+    suspicious_records     INTEGER NOT NULL,
+    location_count         INTEGER NOT NULL,
+    zone_boundary_count    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_pickup_zones (
+    zone_id     INTEGER PRIMARY KEY,
+    zone_name   TEXT,
+    borough     TEXT,
+    trip_count  INTEGER NOT NULL
+);
+
+-- Pickup-zone revenue powers the complete Zone Intelligence choropleth.
+-- Kept separate from analytics_pickup_zones so existing top-zone contracts
+-- remain stable while the map can retrieve revenue without scanning trips.
+CREATE TABLE IF NOT EXISTS analytics_zone_revenue (
+    zone_id        INTEGER PRIMARY KEY,
+    trip_count     INTEGER NOT NULL,
+    total_revenue  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dropoff_zones (
+    zone_id     INTEGER PRIMARY KEY,
+    zone_name   TEXT,
+    borough     TEXT,
+    trip_count  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_fare_distribution (
+    bucket_order   INTEGER PRIMARY KEY,
+    range_label    TEXT NOT NULL,
+    trip_count     INTEGER NOT NULL,
+    avg_fare       REAL,
+    total_revenue  REAL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_borough_revenue (
+    borough               TEXT PRIMARY KEY,
+    total_trips           INTEGER NOT NULL,
+    total_revenue         REAL NOT NULL,
+    avg_revenue_per_trip  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_revenue (
+    date           TEXT PRIMARY KEY,
+    total_trips    INTEGER NOT NULL,
+    total_revenue  REAL NOT NULL,
+    avg_fare       REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS analytics_average_fare (
+    borough         TEXT NOT NULL,
+    payment_type    INTEGER NOT NULL,
+    payment_method  TEXT NOT NULL,
+    total_trips     INTEGER NOT NULL,
+    avg_fare        REAL,
+    avg_tip         REAL,
+    avg_total       REAL,
+    PRIMARY KEY (borough, payment_type)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_hourly_distance (
+    hour                  INTEGER PRIMARY KEY,
+    trip_count            INTEGER NOT NULL,
+    avg_distance          REAL,
+    avg_duration_minutes  REAL
+);
+
+-- Dashboard filter cubes. These retain only the dimensions used by the
+-- dashboard filter bar, keeping interactive requests away from the trips
+-- table even when pickup date and borough are combined.
+CREATE TABLE IF NOT EXISTS analytics_dashboard_slices (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    total_trips       INTEGER NOT NULL,
+    total_revenue     REAL NOT NULL,
+    total_fare        REAL NOT NULL,
+    total_distance    REAL NOT NULL,
+    outlier_count     INTEGER NOT NULL,
+    outside_january_count INTEGER NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dashboard_pickup_zones (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    zone_id           INTEGER NOT NULL,
+    zone_name         TEXT,
+    trip_count        INTEGER NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough, zone_id)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_dashboard_fare_distribution (
+    pickup_date       TEXT NOT NULL,
+    pickup_borough    TEXT NOT NULL,
+    bucket_order      INTEGER NOT NULL,
+    range_label       TEXT NOT NULL,
+    trip_count        INTEGER NOT NULL,
+    fare_total        REAL NOT NULL,
+    total_revenue     REAL NOT NULL,
+    PRIMARY KEY (pickup_date, pickup_borough, bucket_order)
+);
