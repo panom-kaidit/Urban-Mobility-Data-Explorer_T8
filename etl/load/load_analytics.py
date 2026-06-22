@@ -2,7 +2,7 @@ from time import perf_counter
 
 import pandas as pd
 
-from backend.config.database import get_connection
+from backend.config.database import INDEXES_FILE, get_connection
 from etl.load.analytics_accumulator import AnalyticsAccumulator
 
 
@@ -231,7 +231,17 @@ ANALYTICS_SOURCE_COLUMNS = (
 )
 
 
-def refresh_analytics(connection=None, chunk_size: int = 100_000) -> None:
+def rebuild_query_indexes(connection) -> None:
+    """Restore deferred query indexes after a load or recovery run."""
+    connection.executescript(INDEXES_FILE.read_text())
+    connection.execute("ANALYZE")
+
+
+def refresh_analytics(
+    connection=None,
+    chunk_size: int = 100_000,
+    rebuild_indexes: bool = True,
+) -> None:
     """Rebuild analytics with one streamed scan instead of eleven SQL scans."""
     owns_connection = connection is None
     conn = connection or get_connection()
@@ -251,6 +261,9 @@ def refresh_analytics(connection=None, chunk_size: int = 100_000) -> None:
             print(f"  Analytics scan: {rows_seen:,} rows", flush=True)
 
         accumulator.write(conn, AGGREGATE_TABLES)
+        if rebuild_indexes:
+            print("  Rebuilding deferred query indexes...", flush=True)
+            rebuild_query_indexes(conn)
         conn.commit()
         print(
             f"Analytics refreshed in one pass ({perf_counter() - started:.1f}s).",

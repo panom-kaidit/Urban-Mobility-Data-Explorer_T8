@@ -10,4 +10,6 @@ LOOKUP_FILE = RAW_DATA_DIR / "taxi_zone_lookup.csv"
 SPATIAL_FILE = RAW_DATA_DIR / "spatial_metadata" / "taxi_zones.shp"
 TRIP_DATA_FILE = RAW_DATA_DIR / "yellow_tripdata_2019-01.parquet"
 
-CHUNK_SIZE = 50_000
+# Larger chunks reduce repeated pandas copies/groupbys and SQLite tuple
+# preparation while keeping peak memory reasonable on development machines.
+CHUNK_SIZE = 100_000

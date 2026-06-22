@@ -17,15 +17,65 @@ FARE_LABELS = {1: "0-10", 2: "10-20", 3: "20-30", 4: "30-40", 5: "40-50", 6: "50
 PAYMENT_METHODS = {1: "Credit Card", 2: "Cash", 3: "No Charge", 4: "Dispute"}
 
 
-def _python_rows(frame):
-    """Yield SQLite-bindable rows from a small finalized aggregate frame."""
-    for row in frame.itertuples(index=False, name=None):
-        yield tuple(
-            None if pd.isna(value)
-            else value.item() if hasattr(value, "item")
-            else value
-            for value in row
+def _python_value(value):
+    """Convert one pandas/NumPy scalar into a SQLite-bindable value."""
+    if value is None or pd.isna(value):
+        return None
+    if hasattr(value, "item"):
+        value = value.item()
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _python_tuples(rows):
+    """Yield SQLite-safe tuples from any iterable of scalar rows."""
+    for row in rows:
+        yield tuple(_python_value(value) for value in row)
+
+
+def _python_tuple(row):
+    """Return one SQLite-safe tuple."""
+    return tuple(_python_value(value) for value in row)
+
+
+def _python_rows(frame, columns=None):
+    """Yield SQLite-safe rows from a finalized aggregate frame."""
+    selected = frame if columns is None else frame.loc[:, columns]
+    return _python_tuples(selected.itertuples(index=False, name=None))
+
+
+def reconcile_zone_labels(connection):
+    """Refresh aggregate display labels from the authoritative dimension."""
+    connection.execute("""
+        UPDATE analytics_pickup_zones
+        SET zone_name = COALESCE(
+                (SELECT zone FROM locations WHERE location_id = zone_id),
+                zone_name
+            ),
+            borough = COALESCE(
+                (SELECT borough FROM locations WHERE location_id = zone_id),
+                borough
+            )
+    """)
+    connection.execute("""
+        UPDATE analytics_dropoff_zones
+        SET zone_name = COALESCE(
+                (SELECT zone FROM locations WHERE location_id = zone_id),
+                zone_name
+            ),
+            borough = COALESCE(
+                (SELECT borough FROM locations WHERE location_id = zone_id),
+                borough
+            )
+    """)
+    connection.execute("""
+        UPDATE analytics_dashboard_pickup_zones
+        SET zone_name = COALESCE(
+            (SELECT zone FROM locations WHERE location_id = zone_id),
+            zone_name
         )
+    """)
 
 
 class AnalyticsAccumulator:
@@ -183,14 +233,22 @@ class AnalyticsAccumulator:
 
     def write(self, connection, aggregate_tables) -> None:
         """Finalize partial frames and replace the database analytics tables."""
+        if not self.parts["summary"]:
+            raise ValueError("Cannot write analytics: the trip source contained no rows.")
+
         for table in aggregate_tables:
             connection.execute(f"DELETE FROM {table}")
 
         summary = pd.concat(self.parts["summary"], ignore_index=True)
         total_trips = int(summary["total_trips"].sum())
         connection.execute(
-            "INSERT INTO analytics_summary VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
+            """INSERT INTO analytics_summary (
+                singleton_id, total_trips, total_revenue, average_fare,
+                average_distance, start_date, end_date, outlier_count,
+                outside_january_count, suspicious_records, location_count,
+                zone_boundary_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            _python_tuple((
                 1, total_trips, round(float(summary["total_revenue"].sum()), 2),
                 round(float(summary["total_fare"].sum()) / total_trips, 2) if total_trips else 0,
                 round(float(summary["total_distance"].sum()) / total_trips, 2) if total_trips else 0,
@@ -200,7 +258,7 @@ class AnalyticsAccumulator:
                 connection.execute("SELECT COUNT(*) FROM suspicious_records").fetchone()[0],
                 connection.execute("SELECT COUNT(*) FROM locations").fetchone()[0],
                 connection.execute("SELECT COUNT(*) FROM zone_boundaries").fetchone()[0],
-            ),
+            )),
         )
 
         pickup = self._combine("pickup_zones", ["pu_location_id"], {
@@ -209,21 +267,29 @@ class AnalyticsAccumulator:
             "total_revenue": ("total_revenue", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_pickup_zones VALUES (?, ?, ?, ?)",
-            [(int(r.pu_location_id), r.zone_name, r.borough, int(r.trip_count))
-             for r in pickup.itertuples(index=False)],
+            """INSERT INTO analytics_pickup_zones
+                (zone_id, zone_name, borough, trip_count)
+                VALUES (?, ?, ?, ?)""",
+            _python_rows(
+                pickup,
+                ["pu_location_id", "zone_name", "borough", "trip_count"],
+            ),
         )
         connection.executemany(
-            "INSERT INTO analytics_zone_revenue VALUES (?, ?, ?)",
-            [(int(r.pu_location_id), int(r.trip_count), round(float(r.total_revenue), 2))
-             for r in pickup.itertuples(index=False)],
+            """INSERT INTO analytics_zone_revenue
+                (zone_id, trip_count, total_revenue) VALUES (?, ?, ?)""",
+            _python_tuples(
+                (int(r.pu_location_id), int(r.trip_count), round(float(r.total_revenue), 2))
+                for r in pickup.itertuples(index=False)
+            ),
         )
         dropoff = self._combine("dropoff_zones", ["do_location_id"], {
             "zone_name": ("zone_name", "min"), "borough": ("borough", "min"),
             "trip_count": ("trip_count", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_dropoff_zones VALUES (?, ?, ?, ?)",
+            """INSERT INTO analytics_dropoff_zones
+                (zone_id, zone_name, borough, trip_count) VALUES (?, ?, ?, ?)""",
             _python_rows(dropoff),
         )
 
@@ -232,30 +298,42 @@ class AnalyticsAccumulator:
             "total_revenue": ("total_revenue", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_fare_distribution VALUES (?, ?, ?, ?, ?)",
-            [
+            """INSERT INTO analytics_fare_distribution
+                (bucket_order, range_label, trip_count, avg_fare, total_revenue)
+                VALUES (?, ?, ?, ?, ?)""",
+            _python_tuples(
                 (int(r.bucket_order), FARE_LABELS[int(r.bucket_order)], int(r.trip_count),
                  round(float(r.fare_total) / int(r.trip_count), 2), round(float(r.total_revenue), 2))
                 for r in fares.itertuples(index=False)
-            ],
+            ),
         )
 
         boroughs = self._combine("borough_revenue", ["pickup_borough"], {
             "total_trips": ("total_trips", "sum"), "total_revenue": ("total_revenue", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_borough_revenue VALUES (?, ?, ?, ?)",
-            [(r.pickup_borough, int(r.total_trips), round(float(r.total_revenue), 2),
-              round(float(r.total_revenue) / int(r.total_trips), 2)) for r in boroughs.itertuples(index=False)],
+            """INSERT INTO analytics_borough_revenue
+                (borough, total_trips, total_revenue, avg_revenue_per_trip)
+                VALUES (?, ?, ?, ?)""",
+            _python_tuples(
+                (r.pickup_borough, int(r.total_trips), round(float(r.total_revenue), 2),
+                 round(float(r.total_revenue) / int(r.total_trips), 2))
+                for r in boroughs.itertuples(index=False)
+            ),
         )
 
         daily = self._combine("daily_revenue", ["pickup_date"], {
             "total_trips": ("total_trips", "sum"), "total_revenue": ("total_revenue", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_daily_revenue VALUES (?, ?, ?, ?)",
-            [(r.pickup_date, int(r.total_trips), round(float(r.total_revenue), 2),
-              round(float(r.total_revenue) / int(r.total_trips), 2)) for r in daily.itertuples(index=False)],
+            """INSERT INTO analytics_daily_revenue
+                (date, total_trips, total_revenue, avg_fare)
+                VALUES (?, ?, ?, ?)""",
+            _python_tuples(
+                (r.pickup_date, int(r.total_trips), round(float(r.total_revenue), 2),
+                 round(float(r.total_revenue) / int(r.total_trips), 2))
+                for r in daily.itertuples(index=False)
+            ),
         )
 
         averages = self._combine("average_fare", ["pickup_borough", "payment_type"], {
@@ -264,11 +342,17 @@ class AnalyticsAccumulator:
             )
         })
         connection.executemany(
-            "INSERT INTO analytics_average_fare VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [(r.pickup_borough, int(r.payment_type), PAYMENT_METHODS.get(int(r.payment_type), "Other"),
-              int(r.total_trips), round(float(r.fare_sum) / int(r.fare_count), 2),
-              round(float(r.tip_sum) / int(r.tip_count), 2) if r.tip_count else None,
-              round(float(r.total_sum) / int(r.total_count), 2)) for r in averages.itertuples(index=False)],
+            """INSERT INTO analytics_average_fare
+                (borough, payment_type, payment_method, total_trips,
+                 avg_fare, avg_tip, avg_total)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            _python_tuples(
+                (r.pickup_borough, int(r.payment_type), PAYMENT_METHODS.get(int(r.payment_type), "Other"),
+                 int(r.total_trips), round(float(r.fare_sum) / int(r.fare_count), 2),
+                 round(float(r.tip_sum) / int(r.tip_count), 2) if r.tip_count else None,
+                 round(float(r.total_sum) / int(r.total_count), 2))
+                for r in averages.itertuples(index=False)
+            ),
         )
 
         hourly = self._combine("hourly_distance", ["pickup_hour"], {
@@ -277,10 +361,16 @@ class AnalyticsAccumulator:
             )
         })
         connection.executemany(
-            "INSERT INTO analytics_hourly_distance VALUES (?, ?, ?, ?)",
-            [(int(r.pickup_hour), int(r.trip_count), round(float(r.distance_sum) / int(r.distance_count), 2),
-              round(float(r.duration_sum) / int(r.duration_count), 1) if r.duration_count else None)
-             for r in hourly.itertuples(index=False)],
+            """INSERT INTO analytics_hourly_distance
+                (hour, trip_count, avg_distance, avg_duration_minutes)
+                VALUES (?, ?, ?, ?)""",
+            _python_tuples(
+                (int(r.pickup_hour), int(r.trip_count),
+                 round(float(r.distance_sum) / int(r.distance_count), 2),
+                 round(float(r.duration_sum) / int(r.duration_count), 1)
+                 if r.duration_count else None)
+                for r in hourly.itertuples(index=False)
+            ),
         )
 
         slices = self._combine("dashboard_slices", ["pickup_date", "dashboard_borough"], {
@@ -289,18 +379,26 @@ class AnalyticsAccumulator:
             )
         })
         connection.executemany(
-            "INSERT INTO analytics_dashboard_slices VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [(r.pickup_date, r.dashboard_borough, int(r.total_trips), float(r.total_revenue),
-              float(r.total_fare), float(r.total_distance), int(r.outlier_count),
-              int(r.total_trips) if r.pickup_date < "2019-01-01" or r.pickup_date > "2019-01-31" else 0)
-             for r in slices.itertuples(index=False)],
+            """INSERT INTO analytics_dashboard_slices
+                (pickup_date, pickup_borough, total_trips, total_revenue,
+                 total_fare, total_distance, outlier_count, outside_january_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            _python_tuples(
+                (r.pickup_date, r.dashboard_borough, int(r.total_trips), float(r.total_revenue),
+                 float(r.total_fare), float(r.total_distance), int(r.outlier_count),
+                 int(r.total_trips)
+                 if r.pickup_date < "2019-01-01" or r.pickup_date > "2019-01-31" else 0)
+                for r in slices.itertuples(index=False)
+            ),
         )
 
         zones = self._combine("dashboard_zones", ["pickup_date", "dashboard_borough", "pu_location_id"], {
             "zone_name": ("zone_name", "min"), "trip_count": ("trip_count", "sum"),
         })
         connection.executemany(
-            "INSERT INTO analytics_dashboard_pickup_zones VALUES (?, ?, ?, ?, ?)",
+            """INSERT INTO analytics_dashboard_pickup_zones
+                (pickup_date, pickup_borough, zone_id, zone_name, trip_count)
+                VALUES (?, ?, ?, ?, ?)""",
             _python_rows(zones),
         )
         dashboard_fares = self._combine(
@@ -310,8 +408,19 @@ class AnalyticsAccumulator:
             }
         )
         connection.executemany(
-            "INSERT INTO analytics_dashboard_fare_distribution VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [(r.pickup_date, r.dashboard_borough, int(r.bucket_order), FARE_LABELS[int(r.bucket_order)],
-              int(r.trip_count), float(r.fare_total), float(r.total_revenue))
-             for r in dashboard_fares.itertuples(index=False)],
+            """INSERT INTO analytics_dashboard_fare_distribution
+                (pickup_date, pickup_borough, bucket_order, range_label,
+                 trip_count, fare_total, total_revenue)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            _python_tuples(
+                (r.pickup_date, r.dashboard_borough, int(r.bucket_order),
+                 FARE_LABELS[int(r.bucket_order)], int(r.trip_count),
+                 float(r.fare_total), float(r.total_revenue))
+                for r in dashboard_fares.itertuples(index=False)
+            ),
         )
+
+        # The locations dimension is authoritative for display labels. This
+        # also repairs analytics-only recovery when an older trip load stored
+        # a missing pandas label before the lookup parser was corrected.
+        reconcile_zone_labels(connection)

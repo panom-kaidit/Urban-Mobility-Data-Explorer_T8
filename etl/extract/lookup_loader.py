@@ -20,7 +20,10 @@ class LookupLoader:
 
     def load(self) -> pd.DataFrame:
         try:
-            lookup_data = pd.read_csv(self.file_path)
+            # Zone IDs 264/265 intentionally use the literal category "N/A".
+            # Disabling pandas' default NA token conversion preserves those
+            # labels through enrichment and analytics aggregation.
+            lookup_data = pd.read_csv(self.file_path, keep_default_na=False)
         except Exception as exc:
             raise RuntimeError(f"Failed to load lookup file {self.file_path}: {exc}") from exc
 
