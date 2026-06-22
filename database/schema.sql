@@ -127,6 +127,15 @@ CREATE TABLE IF NOT EXISTS analytics_pickup_zones (
     trip_count  INTEGER NOT NULL
 );
 
+-- Pickup-zone revenue powers the complete Zone Intelligence choropleth.
+-- Kept separate from analytics_pickup_zones so existing top-zone contracts
+-- remain stable while the map can retrieve revenue without scanning trips.
+CREATE TABLE IF NOT EXISTS analytics_zone_revenue (
+    zone_id        INTEGER PRIMARY KEY,
+    trip_count     INTEGER NOT NULL,
+    total_revenue  REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS analytics_dropoff_zones (
     zone_id     INTEGER PRIMARY KEY,
     zone_name   TEXT,

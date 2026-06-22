@@ -46,6 +46,18 @@ async function fetchTripById(tripId) {
 
 // Zones endpoints
 
+var _zoneMapRequest = null;
+
+async function fetchZoneMap() {
+  if (!_zoneMapRequest) {
+    _zoneMapRequest = fetchJSON("/zones").catch(function(error) {
+      _zoneMapRequest = null;
+      throw error;
+    });
+  }
+  return _zoneMapRequest;
+}
+
 async function fetchZone(zoneId) {
   return fetchJSON(`/zones/${zoneId}`);
 }

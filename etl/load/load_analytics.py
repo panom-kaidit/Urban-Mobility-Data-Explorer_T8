@@ -9,6 +9,7 @@ from etl.load.analytics_accumulator import AnalyticsAccumulator
 AGGREGATE_TABLES = (
     "analytics_summary",
     "analytics_pickup_zones",
+    "analytics_zone_revenue",
     "analytics_dropoff_zones",
     "analytics_fare_distribution",
     "analytics_borough_revenue",
@@ -54,6 +55,14 @@ def _refresh_analytics_with_sql_scans(connection=None) -> None:
         conn.execute("""
             INSERT INTO analytics_pickup_zones
             SELECT pu_location_id, MIN(pickup_zone), MIN(pickup_borough), COUNT(*)
+            FROM trips
+            WHERE pu_location_id IS NOT NULL
+            GROUP BY pu_location_id
+        """)
+
+        conn.execute("""
+            INSERT INTO analytics_zone_revenue
+            SELECT pu_location_id, COUNT(*), ROUND(SUM(total_amount), 2)
             FROM trips
             WHERE pu_location_id IS NOT NULL
             GROUP BY pu_location_id

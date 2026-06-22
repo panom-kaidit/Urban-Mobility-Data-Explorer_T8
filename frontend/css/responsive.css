@@ -32,6 +32,7 @@
   .dq-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .report-grid   { grid-template-columns: 1fr 1fr; }
   .zone-layout   { grid-template-columns: 1fr; }
+  #zone-map      { height: 520px; }
 }
 
 /* MOBILE */
@@ -42,6 +43,7 @@
   .report-grid    { grid-template-columns: 1fr; }
   .dashboard-filter-group { width: 100%; min-width: 0; }
   .dashboard-filter-reset { width: 100%; }
+  #zone-map { height: 440px; }
 
   .page-title           { font-size: 1.2rem; }
   .navbar-date          { display: none; }

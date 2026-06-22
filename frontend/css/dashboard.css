@@ -541,7 +541,7 @@
 /* ZONE LAYOUT */
 .zone-layout {
   display:               grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap:                   1rem;
   margin-bottom:         1.5rem;
 }
@@ -567,7 +567,7 @@
 }
 
 #zone-map {
-  height:     480px;
+  height:     620px;
   width:      100%;
   background: #E8EEF5;
 }
@@ -619,6 +619,23 @@
 .zone-name     { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zone-borough  { font-size: 0.68rem; color: var(--text-secondary); }
 .zone-count    { font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); text-align: right; white-space: nowrap; }
+
+.zone-map-tooltip {
+  min-width: 220px;
+  color: #334155;
+  font-family: var(--font-family);
+  line-height: 1.45;
+}
+.zone-map-tooltip strong { color: #14532D; font-size: 0.86rem; }
+.zone-map-tooltip .zone-tooltip-borough { color: #64748B; margin-bottom: 0.35rem; }
+.zone-map-tooltip .zone-tooltip-row { display: flex; justify-content: space-between; gap: 1.25rem; }
+.zone-map-tooltip .zone-tooltip-row span:last-child { color: #166534; font-weight: 700; }
+.leaflet-tooltip.zone-revenue-tooltip {
+  border: 1px solid #BBF7D0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  padding: 0.7rem 0.8rem;
+}
 
 /* REPORTS GRID */
 .report-grid {

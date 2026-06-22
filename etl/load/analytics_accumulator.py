@@ -80,6 +80,7 @@ class AnalyticsAccumulator:
                 zone_name=("pickup_zone", "min"),
                 borough=("pickup_borough", "min"),
                 trip_count=("pu_location_id", "size"),
+                total_revenue=("total_amount", "sum"),
             )
         )
 
@@ -205,10 +206,17 @@ class AnalyticsAccumulator:
         pickup = self._combine("pickup_zones", ["pu_location_id"], {
             "zone_name": ("zone_name", "min"), "borough": ("borough", "min"),
             "trip_count": ("trip_count", "sum"),
+            "total_revenue": ("total_revenue", "sum"),
         })
         connection.executemany(
             "INSERT INTO analytics_pickup_zones VALUES (?, ?, ?, ?)",
-            _python_rows(pickup),
+            [(int(r.pu_location_id), r.zone_name, r.borough, int(r.trip_count))
+             for r in pickup.itertuples(index=False)],
+        )
+        connection.executemany(
+            "INSERT INTO analytics_zone_revenue VALUES (?, ?, ?)",
+            [(int(r.pu_location_id), int(r.trip_count), round(float(r.total_revenue), 2))
+             for r in pickup.itertuples(index=False)],
         )
         dropoff = self._combine("dropoff_zones", ["do_location_id"], {
             "zone_name": ("zone_name", "min"), "borough": ("borough", "min"),

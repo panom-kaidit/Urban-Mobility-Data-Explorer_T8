@@ -30,28 +30,28 @@
               <span class="stat-card-label">Total Zones</span>
               <div class="stat-card-icon icon-blue"><i class="fa-solid fa-map"></i></div>
             </div>
-            <div class="stat-card-value">265</div>
-            <div class="stat-card-meta">NYC taxi zones</div>
+            <div class="stat-card-value" id="zone-total-count">&mdash;</div>
+            <div class="stat-card-meta">Taxi zones in the lookup</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
               <span class="stat-card-label">Zone Boundaries</span>
               <div class="stat-card-icon icon-green"><i class="fa-solid fa-location-dot"></i></div>
             </div>
-            <div class="stat-card-value">260</div>
-            <div class="stat-card-meta">GeoJSON polygons loaded</div>
+            <div class="stat-card-value" id="zone-boundary-count">&mdash;</div>
+            <div class="stat-card-meta">GeoJSON polygons rendered</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
               <span class="stat-card-label">Boroughs</span>
               <div class="stat-card-icon icon-yellow"><i class="fa-solid fa-city"></i></div>
             </div>
-            <div class="stat-card-value">5+</div>
+            <div class="stat-card-value" id="zone-borough-count">&mdash;</div>
             <div class="stat-card-meta">Manhattan, Brooklyn, Queens…</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
-              <span class="stat-card-label">Top Pickup Zone</span>
+              <span class="stat-card-label">Top Revenue Zone</span>
               <div class="stat-card-icon icon-purple"><i class="fa-solid fa-trophy"></i></div>
             </div>
             <div class="stat-card-value" id="zone-top-name">—</div>
@@ -65,15 +65,15 @@
           <div class="zone-map-card">
             <div class="zone-map-header">
               <h2>Zone Map — Top 10 Pickup Hotspots</h2>
-              <span class="badge">Leaflet + GeoJSON</span>
+              <span class="badge badge-green">All boundaries</span>
             </div>
             <div id="zone-map"></div>
           </div>
 
           <div class="zone-ranking-card">
             <div class="zone-ranking-header">
-              <h2>Zone Ranking</h2>
-              <p class="section-subtitle">Sorted by pickup volume</p>
+              <h2>Revenue Ranking</h2>
+              <p class="section-subtitle">Top pickup zones by total revenue</p>
             </div>
             <div id="zone-ranking-list">
               <div class="chart-placeholder" style="height:200px">
@@ -90,10 +90,10 @@
           <div class="chart-card" style="grid-column:1/-1">
             <div class="chart-card-header">
               <div>
-                <div class="chart-card-title">Top 15 Pickup Zones by Volume</div>
+                <div class="chart-card-title">Top 15 Pickup Zones by Revenue</div>
                 <div class="chart-card-subtitle">Trips per zone — ranked with Merge Sort algorithm</div>
               </div>
-              <span class="badge">Merge Sort</span>
+              <span class="badge badge-green">Revenue</span>
             </div>
             <div class="chart-container" style="height:360px" id="zone-bar-container">
               <div class="chart-placeholder">
@@ -115,7 +115,7 @@
   <script defer src="../components/navbar.js"></script>
   <script defer src="../components/sidebar.js"></script>
   <script defer src="../js/router.js"></script>
-  <script defer src="../js/zones.js"></script>
+  <script defer src="../js/zone_revenue_map.js"></script>
 
 </body>
 </html>
