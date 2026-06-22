@@ -24,7 +24,8 @@
   position:         fixed;
   top:              0;
   left:             0;
-  z-index:          100;
+  /* Stay above third-party widgets such as Leaflet (panes reach z-index 700). */
+  z-index:          1000;
   transition:       transform 0.3s ease, width 0.3s ease;
   overflow-y:       auto;
   overflow-x:       hidden;
@@ -163,7 +164,7 @@
   position:         fixed;
   inset:            0;
   background-color: rgba(0, 0, 0, 0.6);
-  z-index:          99;
+  z-index:          999;
 }
 .sidebar-overlay.active { display: block; }
 
@@ -538,6 +539,8 @@
   border-radius: var(--radius-lg);
   overflow:      hidden;
   box-shadow:    var(--shadow-md);
+  /* Keep Leaflet's high-z-index panes inside the map card's layer. */
+  isolation:     isolate;
 }
 .zone-map-header {
   padding:       0.9rem 1.25rem;
