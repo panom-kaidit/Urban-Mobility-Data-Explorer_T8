@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base, relationship
 
 
-# This is the base class for all tables in the database, including trips, locations,
 Base = declarative_base()
 
 
@@ -12,19 +11,15 @@ class Location(Base):
 
     location_id = Column(Integer, primary_key=True)
 
-    # Human-readable zone information used by filters and dashboard labels.
     borough = Column(String, nullable=False)
     zone = Column(String, nullable=False)
     service_zone = Column(String, nullable=True)
-
-    # Trips where the location was the pickup zone.
     pickup_trips = relationship(
         "Trip",
         back_populates="pickup_location",
         foreign_keys="Trip.pu_location_id",
     )
 
-    # Trips where the location was the dropoff zone.
     dropoff_trips = relationship(
         "Trip",
         back_populates="dropoff_location",
