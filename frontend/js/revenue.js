@@ -6,26 +6,20 @@ async function initRevenuePage() {
   injectNavbar();
   setNavbarTitle("Revenue Analytics");
 
-  var results = await Promise.allSettled([
-    fetchRevenueByBorough(),
-    fetchRevenueTrends(),
-    fetchAverageFare(),
-    fetchFareDistribution(),
-  ]);
+  await loadRevenueByBorough();
 
-  loadRevenueByBorough(_resultValue(results[0]));
-  loadRevenueTrend(_resultValue(results[1]));
-  loadAverageFare(_resultValue(results[2]));
-  loadFareDistribution(_resultValue(results[3]));
-  showApp();
+  setTimeout(loadRevenueTrend, 50);
+  setTimeout(loadAverageFare, 100);
+  setTimeout(loadFareDistribution, 150);
 }
 
 
-function loadRevenueByBorough(data) {
+async function loadRevenueByBorough() {
   var wrap = document.getElementById("wrap-revenue-by-borough");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    if (!data) throw new Error("Borough revenue data unavailable");
+    var data     = await fetchRevenueByBorough();
     var boroughs = data.boroughs;
 
     var totalRevenue = boroughs.reduce(function(s, b) { return s + b.total_revenue; }, 0);
@@ -61,11 +55,12 @@ function loadRevenueByBorough(data) {
   }
 }
 
-function loadRevenueTrend(data) {
+async function loadRevenueTrend() {
   var wrap = document.getElementById("wrap-revenue-trend");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    if (!data) throw new Error("Revenue trend data unavailable");
+    var data  = await fetchRevenueTrends();
     var trend = data.trend;
 
     var peak = trend.reduce(function(max, d) {
@@ -95,11 +90,12 @@ function loadRevenueTrend(data) {
   }
 }
 
-function loadAverageFare(data) {
+async function loadAverageFare() {
   var wrap = document.getElementById("wrap-average-fare");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    if (!data) throw new Error("Average fare data unavailable");
+    var data = await fetchAverageFare();
     var rows = data.fares;
 
     var boroughList = [];
@@ -138,11 +134,12 @@ function loadAverageFare(data) {
   }
 }
 
-function loadFareDistribution(data) {
+async function loadFareDistribution() {
   var wrap = document.getElementById("wrap-fare-distribution");
+  if (wrap) wrap.innerHTML = _loadHtml();
 
   try {
-    if (!data) throw new Error("Fare distribution data unavailable");
+    var data = await fetchFareDistribution();
     var rows = data.distribution;
 
     var busiest = rows.reduce(function(max, r) {
@@ -176,16 +173,13 @@ function _setCaption(id, val) {
   var el = document.getElementById(id);
   if (el) el.textContent = val;
 }
-function _resultValue(result) {
-  return result && result.status === "fulfilled" ? result.value : null;
-}
 function _loadHtml() {
   return '<div class="chart-placeholder"><div class="loading-spinner"></div></div>';
 }
 function _errHtml(title) {
   return (
     '<div class="chart-placeholder">' +
-      '<span style="color:var(--accent-red)">' + title + ' unavailable.</span>' +
+      '<span style="color:var(--accent-red)">&#x26A0;&#xFE0F; Could not load ' + title + '.</span>' +
     '</div>'
   );
 }

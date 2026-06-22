@@ -1,12 +1,17 @@
-/* Shared responsive behavior for every analytics page. */
+/* URBAN MOBILITY EXPLORER - responsive.css
+   Breakpoints:
+     Mobile  : max-width 480px
+     Tablet  : max-width 768px
+     Desktop : default
+     Wide    : min-width 1400px
+*/
 
 /* TABLET */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
-    width:     min(var(--sidebar-width), 86vw);
+    width:     var(--sidebar-width);
     z-index:   200;
-    height: 100dvh;
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar.open .sidebar-link-label,
@@ -15,108 +20,33 @@
   .sidebar.open .sidebar-footer {
     opacity: 1;
   }
-  .sidebar-overlay { z-index: 199; }
-  .sidebar-link { min-height: 44px; }
   .main-content { margin-left: 0; }
   .navbar       { left: 0; }
   .navbar-toggle { display: flex; }
 
-  .content-inner { padding: 1.25rem; }
-  .cards-grid   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-filters { flex-wrap: wrap; }
-  .dashboard-filter-status { width: 100%; margin-left: 0; padding-bottom: 0; }
+  .cards-grid   { grid-template-columns: repeat(2, 1fr); }
+  .filters-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid  { grid-template-columns: 1fr; }
 
-  .dq-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .report-grid   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dq-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .report-grid   { grid-template-columns: 1fr 1fr; }
   .zone-layout   { grid-template-columns: 1fr; }
-  #zone-map      { height: 520px; }
-}
-
-/* PORTRAIT TABLETS */
-@media (max-width: 768px) {
-  :root { --navbar-height: 60px; }
-  .charts-grid,
-  .chart-grid { grid-template-columns: 1fr; }
-  .chart-card,
-  .chart-panel { min-width: 0; }
-  .chart-card-header,
-  .zone-map-header,
-  .records-panel-header,
-  .summary-table-panel-header {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-  }
-  .report-card-meta { flex-wrap: wrap; gap: 0.65rem; }
-  .records-table-wrap,
-  .summary-table-panel > div { max-width: 100%; overflow-x: auto; }
-  .chart-container,
-  .chart-placeholder,
-  .chart-canvas-wrap { height: 260px; }
 }
 
 /* MOBILE */
-@media (max-width: 560px) {
-  .content-inner  { padding: 0.85rem; }
-  .navbar { padding: 0 0.85rem; }
-  .navbar-left { gap: 0.65rem; }
-  .navbar-left > div { min-width: 0; }
-  .navbar-title {
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .navbar-subtitle {
-    font-size: 0.64rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+@media (max-width: 480px) {
+  .content-inner  { padding: 1rem; }
   .cards-grid     { grid-template-columns: 1fr; }
   .dq-stats-grid  { grid-template-columns: 1fr; }
+  .filters-grid   { grid-template-columns: 1fr; }
   .report-grid    { grid-template-columns: 1fr; }
-  .dashboard-filter-group { width: 100%; min-width: 0; }
-  .dashboard-filter-reset { width: 100%; }
-  .dashboard-filters { align-items: stretch; padding: 0.8rem; }
-  .dashboard-filter-control,
-  .dashboard-filter-reset { min-height: 44px; }
-
-  .stat-card,
-  .chart-card,
-  .chart-panel,
-  .report-card { padding: 1rem; }
-  .stat-card-value,
-  .kpi-value { font-size: 1.35rem; }
-  .chart-container,
-  .chart-placeholder,
-  .chart-canvas-wrap { height: 235px; }
-
-  #zone-map { height: 420px; }
-  .zone-map-header { padding: 0.8rem 1rem; }
-  .zone-item { padding: 0.65rem 0.85rem; gap: 0.55rem; }
-  .zone-count { font-size: 0.7rem; }
-  .zone-map-tooltip { min-width: 185px; }
-
-  .records-panel-header > div:last-child {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .report-card-meta .btn { width: 100%; }
-  .summary-table-panel-header { padding: 0.85rem 1rem; }
-  .data-table { font-size: 0.74rem; }
-  .data-table th,
-  .data-table td { padding: 0.55rem 0.75rem; }
-  #report-viewer-body { padding: 1rem !important; }
 
   .page-title           { font-size: 1.2rem; }
-}
-
-@media (max-width: 360px) {
-  .navbar-subtitle { display: none; }
-  .content-inner { padding: 0.65rem; }
-  .stat-card-icon { width: 34px; height: 34px; }
-  #zone-map { height: 360px; }
+  .filters-actions      { flex-direction: column; }
+  .filters-actions .btn { width: 100%; justify-content: center; }
+  .navbar-date          { display: none; }
+  .stat-card-value      { font-size: 1.4rem; }
+  .navbar               { padding: 0 1rem; }
 }
 
 /* WIDE DESKTOP */
@@ -126,5 +56,5 @@
 
 /* ---- Very wide ---- */
 @media (min-width: 1800px) {
-  .cards-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cards-grid { grid-template-columns: repeat(4, 1fr); }
 }

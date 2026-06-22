@@ -3,29 +3,22 @@ async function initMobilityPage() {
   injectNavbar();
   setNavbarTitle("Mobility Analytics");
 
-  var results = await Promise.allSettled([
-    fetchTopPickupZones(10),
-    fetchTopDropoffZones(10),
-    fetchRevenueByBorough(),
-    fetchAverageDistanceByHour(),
-    fetchFareDistribution(),
+  await Promise.allSettled([
+    loadTopPickupZones(),
+    loadTopDropoffZones(),
+    loadBoroughComparison(),
+    loadAverageDistance(),
+    _loadFareRangeKpi(),
   ]);
-
-  loadTopPickupZones(_mobilityResult(results[0]));
-  loadTopDropoffZones(_mobilityResult(results[1]));
-  loadBoroughComparison(_mobilityResult(results[2]));
-  loadAverageDistance(_mobilityResult(results[3]));
-  _loadFareRangeKpi(_mobilityResult(results[4]));
-  showApp();
 }
 
-function loadTopPickupZones(data) {
+async function loadTopPickupZones() {
   try {
-    if (!data) throw new Error("Pickup zone data unavailable");
+    var data  = await fetchTopPickupZones(10);
     var zones = data.zones || [];
 
     if (zones.length === 0) {
-      showChartError("mob-pickup-container", "No pickup zone data available.");
+      showChartError("mob-pickup-container", "No pickup zone data returned.");
       return;
     }
 
@@ -50,12 +43,14 @@ function loadTopPickupZones(data) {
     );
 
   } catch (err) {
-    showChartError("mob-pickup-container", "Pickup zone data unavailable.");
+    showChartError("mob-pickup-container", "Could not load pickup zones.");
     console.error("loadTopPickupZones:", err);
   }
 }
 
-function loadTopDropoffZones(data) {
+async function loadTopDropoffZones() {
+  var data = await fetchTopDropoffZones(10);   // returns null on fetch error
+
   if (!data) {
     showChartComingSoon("mob-dropoff-container", "Top Dropoff Zones");
     return;
@@ -78,14 +73,14 @@ function loadTopDropoffZones(data) {
       zones.map(function(z) { return boroughColor(z.borough); })
     );
   } catch (err) {
-    showChartError("mob-dropoff-container", "Dropoff zone data unavailable.");
+    showChartError("mob-dropoff-container", "Could not render Top Dropoff Zones.");
     console.error("loadTopDropoffZones render:", err);
   }
 }
 
-function loadBoroughComparison(data) {
+async function loadBoroughComparison() {
   try {
-    if (!data) throw new Error("Borough data unavailable");
+    var data     = await fetchRevenueByBorough();
     var boroughs = data.boroughs;
 
     var container = document.getElementById("mob-borough-container");
@@ -99,12 +94,14 @@ function loadBoroughComparison(data) {
     );
 
   } catch (err) {
-    showChartError("mob-borough-container", "Borough data unavailable.");
+    showChartError("mob-borough-container", "Could not load borough data.");
     console.error("loadBoroughComparison:", err);
   }
 }
 
-function loadAverageDistance(data) {
+async function loadAverageDistance() {
+  var data = await fetchAverageDistanceByHour();   // returns null on fetch error
+
   if (!data) {
     showChartComingSoon("mob-distance-container", "Average Distance by Hour");
     return;
@@ -128,13 +125,14 @@ function loadAverageDistance(data) {
       true
     );
   } catch (err) {
-    showChartError("mob-distance-container", "Distance data unavailable.");
+    showChartError("mob-distance-container", "Could not render Average Distance chart.");
     console.error("loadAverageDistance render:", err);
   }
 }
 
-function _loadFareRangeKpi(data) {
+async function _loadFareRangeKpi() {
   try {
+    var data = await fetchFareDistribution();
     if (!data || !data.distribution) return;
     var busiest = data.distribution.reduce(function(max, r) {
       return r.trip_count > max.trip_count ? r : max;
@@ -146,10 +144,6 @@ function _loadFareRangeKpi(data) {
 function _set(id, val) {
   var el = document.getElementById(id);
   if (el) el.textContent = val;
-}
-
-function _mobilityResult(result) {
-  return result && result.status === "fulfilled" ? result.value : null;
 }
 
 document.addEventListener("DOMContentLoaded", initMobilityPage);

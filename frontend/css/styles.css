@@ -2,25 +2,23 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Archivo:wght@500;700;800&display=swap');
 
-html { overflow-y: scroll; }
-
 /* ---- Design Tokens ---- */
 :root {
   /* Backgrounds */
-  --bg-primary:      #FFFFFF;
-  --bg-secondary:    #F1F5F9;
-  --bg-card:         #FFFFFF;
-  --bg-card-hover:   #F8FAFC;
-  --bg-glass:        rgba(255, 255, 255, 0.94);
-  --bg-overlay:      rgba(15, 23, 42, 0.72);
+  --bg-primary:      #0A232A;
+  --bg-secondary:    #070D38;
+  --bg-card:         #0F313A;
+  --bg-card-hover:   #0E1758;
+  --bg-glass:        rgba(11, 20, 71, 0.85);
+  --bg-overlay:      rgba(5, 11, 46, 0.92);
 
   /* Neon accents */
-  --accent-cyan:     #2563EB;
-  --accent-blue:     #1D4ED8;
-  --accent-green:    #15803D;
-  --accent-yellow:   #D97706;
-  --accent-red:      #DC2626;
-  --accent-purple:   #7C3AED;
+  --accent-cyan:     #00D4FF;
+  --accent-blue:     #3B82F6;
+  --accent-green:    #10F0A0;
+  --accent-yellow:   #FF9F43;
+  --accent-red:      #FF5A7A;
+  --accent-purple:   #8B5CF6;
 
   /* NYC subway borough palette */
   --borough-manhattan: #FCCC0A;
@@ -31,20 +29,20 @@ html { overflow-y: scroll; }
   --borough-ewr:       #4D7FE0;
 
   /* Text hierarchy */
-  --text-primary:    #172033;
-  --text-secondary:  #526174;
-  --text-muted:      #7A8797;
-  --text-bright:     #0F172A;
+  --text-primary:    #E2E8F0;
+  --text-secondary:  #8B9BB4;
+  --text-muted:      #4A5568;
+  --text-bright:     #FFFFFF;
 
   /* Borders */
-  --border-subtle:   #EEF2F7;
-  --border-default:  #DCE3EB;
-  --border-strong:   #9CB6D5;
+  --border-subtle:   rgba(0, 212, 255, 0.06);
+  --border-default:  rgba(0, 212, 255, 0.12);
+  --border-strong:   rgba(0, 212, 255, 0.30);
 
   /* Shadows */
-  --shadow-sm:   0 1px 3px rgba(15, 23, 42, 0.08);
-  --shadow-md:   0 4px 16px rgba(15, 23, 42, 0.08);
-  --shadow-lg:   0 10px 28px rgba(15, 23, 42, 0.12);
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md:   0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg:   0 8px 32px rgba(0, 0, 0, 0.60);
   --glow-cyan:   0 0 24px rgba(0, 212, 255, 0.20);
   --glow-blue:   0 0 24px rgba(59, 130, 246, 0.20);
 
@@ -66,18 +64,18 @@ html { overflow-y: scroll; }
   --font-mono:     'JetBrains Mono', 'Courier New', monospace;
 
   /* Legacy compat aliases (used by existing dashboard.css) */
-  --sidebar-bg:    #174A7E;
-  --sidebar-text:  rgba(255, 255, 255, 0.82);
-  --navbar-bg:     #FFFFFF;
-  --border-color:  #DCE3EB;
-  --card-bg:       #FFFFFF;
-  --content-bg:    #FFFFFF;
-  --text-light:    #7A8797;
-  --primary-color: #2563EB;
-  --success-color: #15803D;
-  --warning-color: #D97706;
-  --danger-color:  #DC2626;
-  --purple-color:  #7C3AED;
+  --sidebar-bg:    #0A232A;
+  --sidebar-text:  rgba(139, 155, 180, 0.9);
+  --navbar-bg:     #0A232A;
+  --border-color:  rgba(0, 212, 255, 0.10);
+  --card-bg:       #0F313A;
+  --content-bg:    #0A232A;
+  --text-light:    #4A5568;
+  --primary-color: #00D4FF;
+  --success-color: #10F0A0;
+  --warning-color: #FF9F43;
+  --danger-color:  #FF5A7A;
+  --purple-color:  #8B5CF6;
 }
 
 /* ---- Base Reset ---- */
@@ -101,7 +99,6 @@ body {
   -webkit-font-smoothing:  antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height:              100vh;
-  overflow-x:              hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -264,7 +261,6 @@ a:hover { opacity: 0.8; }
 /* ---- Data Table ---- */
 .data-table {
   width:           100%;
-  min-width:       620px;
   border-collapse: collapse;
   font-size:       0.8rem;
 }

@@ -5,7 +5,6 @@ const API_BASE_URL = "http://localhost:8000/api";
 
 // Set global Chart.js defaults for the dark theme.
 if (typeof Chart !== "undefined") {
-  Chart.defaults.animation       = false;
   Chart.defaults.color           = "#8B9BB4";
   Chart.defaults.borderColor     = "rgba(0, 212, 255, 0.07)";
   Chart.defaults.font.family     = "'Inter', system-ui, sans-serif";
@@ -32,10 +31,14 @@ async function fetchJSON(endpoint) {
 
 // Trips endpoints
 
-async function fetchTrips(options = {}) {
+async function fetchTrips(filters = {}) {
   const params = [];
-  if (options.limit)  params.push(`limit=${encodeURIComponent(options.limit)}`);
-  if (options.offset) params.push(`offset=${encodeURIComponent(options.offset)}`);
+  if (filters.limit)   params.push(`limit=${encodeURIComponent(filters.limit)}`);
+  if (filters.offset)  params.push(`offset=${encodeURIComponent(filters.offset)}`);
+  if (filters.borough) params.push(`borough=${encodeURIComponent(filters.borough)}`);
+  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
+  if (filters.fare)    params.push(`fare=${encodeURIComponent(filters.fare)}`);
+  if (filters.date)    params.push(`date=${encodeURIComponent(filters.date)}`);
   const qs = params.length ? `?${params.join("&")}` : "";
   return fetchJSON(`/trips${qs}`);
 }
@@ -46,43 +49,28 @@ async function fetchTripById(tripId) {
 
 // Zones endpoints
 
-var _zoneMapRequest = null;
-
-async function fetchZoneMap() {
-  if (!_zoneMapRequest) {
-    _zoneMapRequest = fetchJSON("/zones").catch(function(error) {
-      _zoneMapRequest = null;
-      throw error;
-    });
-  }
-  return _zoneMapRequest;
-}
-
 async function fetchZone(zoneId) {
   return fetchJSON(`/zones/${zoneId}`);
 }
 
 // Analytics endpoints
 
-function _dashboardFilterParams(filters) {
+function _analyticsFilterParams(filters) {
   const params = [];
-  filters = filters || {};
-  if (filters.borough) params.push(`borough=${encodeURIComponent(filters.borough)}`);
-  if (filters.pickupDate) params.push(`pickup_date=${encodeURIComponent(filters.pickupDate)}`);
+  if (filters.borough)  params.push(`borough=${encodeURIComponent(filters.borough)}`);
+  if (filters.distance) params.push(`distance=${encodeURIComponent(filters.distance)}`);
+  if (filters.fare)     params.push(`fare=${encodeURIComponent(filters.fare)}`);
+  if (filters.date)     params.push(`date=${encodeURIComponent(filters.date)}`);
   return params;
 }
 
-async function fetchDashboardFilterOptions() {
-  return fetchJSON("/analytics/dashboard-filter-options");
-}
-
 async function fetchTopPickupZones(topN = 10, filters = {}) {
-  const params = [`top_n=${encodeURIComponent(topN)}`].concat(_dashboardFilterParams(filters));
+  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
   return fetchJSON(`/analytics/top-pickup-zones?${params.join("&")}`);
 }
 
 async function fetchFareDistribution(filters = {}) {
-  const params = _dashboardFilterParams(filters);
+  const params = _analyticsFilterParams(filters);
   const qs = params.length ? `?${params.join("&")}` : "";
   return fetchJSON(`/analytics/fare-distribution${qs}`);
 }
@@ -91,16 +79,22 @@ async function fetchFareDistributionDetailed() {
   return fetchJSON("/analytics/fare-distribution-detailed");
 }
 
-async function fetchRevenueByBorough() {
-  return fetchJSON("/analytics/revenue-by-borough");
+async function fetchRevenueByBorough(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/revenue-by-borough${qs}`);
 }
 
-async function fetchRevenueTrends() {
-  return fetchJSON("/analytics/revenue-trends");
+async function fetchRevenueTrends(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/revenue-trends${qs}`);
 }
 
-async function fetchAverageFare() {
-  return fetchJSON("/analytics/average-fare");
+async function fetchAverageFare(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
+  return fetchJSON(`/analytics/average-fare${qs}`);
 }
 
 async function fetchSuspiciousRecords(limit = 100, offset = 0) {
@@ -109,17 +103,20 @@ async function fetchSuspiciousRecords(limit = 100, offset = 0) {
 
 // Analytics endpoints additional
 
-async function fetchTopDropoffZones(topN = 10) {
+async function fetchTopDropoffZones(topN = 10, filters = {}) {
+  const params = [`top_n=${topN}`].concat(_analyticsFilterParams(filters));
   try {
-    return await fetchJSON(`/analytics/top-dropoff-zones?top_n=${encodeURIComponent(topN)}`);
+    return await fetchJSON(`/analytics/top-dropoff-zones?${params.join("&")}`);
   } catch (_) {
     return null;
   }
 }
 
-async function fetchAverageDistanceByHour() {
+async function fetchAverageDistanceByHour(filters = {}) {
+  const params = _analyticsFilterParams(filters);
+  const qs = params.length ? `?${params.join("&")}` : "";
   try {
-    return await fetchJSON("/analytics/average-distance");
+    return await fetchJSON(`/analytics/average-distance${qs}`);
   } catch (_) {
     return null;
   }
@@ -128,7 +125,7 @@ async function fetchAverageDistanceByHour() {
 // summary endpoint
 
 async function fetchSummary(filters = {}) {
-  const params = _dashboardFilterParams(filters);
+  const params = _analyticsFilterParams(filters);
   const qs = params.length ? `?${params.join("&")}` : "";
   const raw = await fetchJSON(`/analytics/summary${qs}`);
   return {
@@ -143,9 +140,6 @@ async function fetchSummary(filters = {}) {
     suspiciousRecords: raw.suspicious_records || 0,
     locationCount: raw.location_count || 0,
     zoneBoundaryCount: raw.zone_boundary_count || 0,
-    filtersApplied: params.length > 0,
-    filterBorough: filters.borough || null,
-    filterPickupDate: filters.pickupDate || null,
   };
 }
 

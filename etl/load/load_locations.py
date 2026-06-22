@@ -1,11 +1,3 @@
-import sys
-from pathlib import Path
-
-# Allow this loader to be run directly as well as imported as a package module.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from etl.extract import LookupLoader
 from etl.utils.config import LOOKUP_FILE
 from backend.config.database import get_connection

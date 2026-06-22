@@ -36,10 +36,12 @@ class Trip(Base):
     congestion_surcharge = Column(Float, nullable=True)
     airport_fee = Column(Float, nullable=True)
 
+    # The ETL keeps suspicious-but-valid trips and marks them instead of deleting them 
 
     is_outlier = Column(Integer, nullable=False, default=0)
     outlier_reasons = Column(Text, nullable=True)
 
+    # Denormalized pickup/dropoff labels added by the ETL for fast filtering
     pickup_borough = Column(String, nullable=True)
     pickup_zone = Column(String, nullable=True)
     pickup_service_zone = Column(String, nullable=True)
@@ -47,6 +49,7 @@ class Trip(Base):
     dropoff_zone = Column(String, nullable=True)
     dropoff_service_zone = Column(String, nullable=True)
 
+    # The database stores trip_duration_minutes and average_speed_mph. These are not raw fields from the dataset but are calculated during the ETL cleaning step for easier filtering
     trip_duration_minutes = Column(Float, nullable=True)
     average_speed_mph = Column(Float, nullable=True)
     fare_per_mile = Column(Float, nullable=True)

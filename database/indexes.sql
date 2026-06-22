@@ -3,14 +3,40 @@
 -- revenue trend queries grouped by date
 CREATE INDEX IF NOT EXISTS idx_trips_pickup_datetime ON trips (pickup_datetime);
 
--- All dashboard analytics are read from compact precomputed tables. Additional
--- indexes on the 7.68M-row trips table would only slow bulk loading and index
--- creation; trip detail lookup uses its primary key and this ordering index.
+-- joins / filtering by pickup and dropoff zone
+CREATE INDEX IF NOT EXISTS idx_trips_pu_location_id ON trips (pu_location_id);
+CREATE INDEX IF NOT EXISTS idx_trips_do_location_id ON trips (do_location_id);
 
--- Fast borough-first lookups when no pickup date is selected.
-CREATE INDEX IF NOT EXISTS idx_dashboard_slices_borough_date
-ON analytics_dashboard_slices (pickup_borough, pickup_date);
-CREATE INDEX IF NOT EXISTS idx_dashboard_zones_borough_date
-ON analytics_dashboard_pickup_zones (pickup_borough, pickup_date);
-CREATE INDEX IF NOT EXISTS idx_dashboard_fares_borough_date
-ON analytics_dashboard_fare_distribution (pickup_borough, pickup_date);
+-- revenue-by-borough grouping (no JOIN needed, columns are denormalized)
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_borough ON trips (pickup_borough);
+CREATE INDEX IF NOT EXISTS idx_trips_dropoff_borough ON trips (dropoff_borough);
+
+-- filtering outlier vs non-outlier trips
+CREATE INDEX IF NOT EXISTS idx_trips_is_outlier ON trips (is_outlier);
+
+-- filtering by payment type
+CREATE INDEX IF NOT EXISTS idx_trips_payment_type ON trips (payment_type);
+
+-- fare-based filtering and fare distribution queries
+CREATE INDEX IF NOT EXISTS idx_trips_fare_amount ON trips (fare_amount);
+
+-- zone boundary lookups by location
+CREATE INDEX IF NOT EXISTS idx_zone_boundaries_location_id ON zone_boundaries (location_id);
+
+-- hour-of-day grouping for average-distance endpoint
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_hour ON trips (pickup_hour);
+
+-- top dropoff zones grouping
+CREATE INDEX IF NOT EXISTS idx_trips_dropoff_zone ON trips (dropoff_zone);
+CREATE INDEX IF NOT EXISTS idx_trips_dropoff_zone_summary
+ON trips (do_location_id, dropoff_zone, dropoff_borough);
+
+-- fare distribution range scans with revenue aggregation
+CREATE INDEX IF NOT EXISTS idx_trips_fare_distribution
+ON trips (fare_amount, total_amount);
+
+-- average-fare endpoint groups by borough + payment_type
+CREATE INDEX IF NOT EXISTS idx_trips_borough_payment ON trips (pickup_borough, payment_type);
+
+-- date-range filter in list_trips; also used by revenue-trends GROUP BY
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_date ON trips (SUBSTR(pickup_datetime, 1, 10));

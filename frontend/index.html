@@ -13,8 +13,9 @@
 }
 
 body{
-    overflow-x:hidden;
-    background: #FFFFFF;
+    overflow:hidden;
+    background: #0A232A;
+    background: linear-gradient(90deg, rgba(10, 35, 42, 1) 47%, rgba(29, 55, 66, 1) 65%, rgba(227, 132, 0, 1) 100%);
     font-family:"Gill Sans",sans-serif;
     height:100vh;
 }
@@ -41,7 +42,7 @@ body{
 }
 
 .intro{
-    color:#2563EB;
+    color:#9CCC65;
     text-transform:uppercase;
     font-size:2rem;
     letter-spacing:2px;
@@ -49,7 +50,7 @@ body{
 }
 
 .content h1{
-    color:#174A7E;
+    color:white;
     text-transform:uppercase;
     font-size:3rem;
     font-weight:800;
@@ -58,7 +59,7 @@ body{
 }
 
 .content h2{
-    color:#526174;
+    color:#9CCC65;
     font-size:1.25rem;
     font-weight:400;
     line-height:1.4;
@@ -153,7 +154,7 @@ body.fade-out{
         flex-direction:column;
         justify-content:center;
         text-align:center;
-        padding:2rem 1.25rem;
+        padding:2rem;
     }
 
     .content{
@@ -161,7 +162,7 @@ body.fade-out{
     }
 
     .content h1{
-        font-size:clamp(2.5rem, 10vw, 4rem);
+        font-size:4rem;
     }
 
     .content h2{
@@ -169,36 +170,12 @@ body.fade-out{
     }
 
     .hero-image-wrapper{
-        width:min(80%, 620px);
+        width:80%;
         margin-top:2rem;
     }
 
     .hero-image{
         width:100%;
-    }
-}
-
-@media(max-width:560px){
-    body{ overflow-y:auto; }
-    .landing-page{
-        min-height:100vh;
-        height:auto;
-        padding:2rem 1rem;
-    }
-    .intro{
-        font-size:1rem;
-        margin-bottom:1rem;
-    }
-    .content h1{
-        font-size:clamp(2.1rem, 13vw, 3rem);
-        line-height:1;
-    }
-    .content h2{
-        font-size:1rem;
-    }
-    .hero-image-wrapper{
-        width:100%;
-        margin-top:1.5rem;
     }
 }
 </style>
@@ -258,7 +235,7 @@ setTimeout(() => {
 setTimeout(() => {
 
     window.location.href =
-        "/dashboard";
+        "./pages/dashboard.html";
 
 }, 5000);
 
