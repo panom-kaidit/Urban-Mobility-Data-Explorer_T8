@@ -159,7 +159,7 @@ function showCardsError() {
   container.innerHTML = (
     '<div style="grid-column:1/-1;padding:1.5rem;text-align:center;color:var(--accent-red);font-size:0.82rem;">' +
       '<i class="fa-solid fa-triangle-exclamation" style="margin-right:0.4rem"></i>' +
-      'Could not load dashboard stats. Is the backend running at localhost:8000?' +
+      'Dashboard data unavailable.' +
     '</div>'
   );
 }

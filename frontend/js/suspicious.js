@@ -68,7 +68,7 @@ function _renderPage(data) {
 
 function _showLoadError(err) {
   var tbody = document.getElementById("dq-records-tbody");
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--accent-red);padding:1.5rem">Could not load records. Is the backend running?</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--accent-red);padding:1.5rem">Records unavailable.</td></tr>';
   console.error("initDataQualityPage:", err);
 }
 

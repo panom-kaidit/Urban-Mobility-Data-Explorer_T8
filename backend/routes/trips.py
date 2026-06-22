@@ -126,8 +126,8 @@ def list_trips(
         }
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Trips query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Trip data unavailable")
 
 
 @router.get("/{trip_id}")
@@ -189,5 +189,5 @@ def get_trip(
         return row_to_dict(row)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Trip lookup failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Trip data unavailable")

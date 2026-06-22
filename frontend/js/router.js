@@ -87,12 +87,12 @@ async function navigateToPage(href, addHistory) {
 
   try {
     var response = await fetch(pageUrl);
-    if (!response.ok) throw new Error("Could not load page");
+    if (!response.ok) throw new Error("Page unavailable");
 
     var html = await response.text();
     var pageDocument = new DOMParser().parseFromString(html, "text/html");
     var nextContent = pageDocument.querySelector(".content-inner");
-    if (!nextContent) throw new Error("Page content was not found");
+    if (!nextContent) throw new Error("Page content unavailable");
 
     await _loadStyles(pageDocument, pageUrl);
     await _loadPageScripts(pageDocument, pageUrl);
@@ -132,7 +132,7 @@ async function navigateToPage(href, addHistory) {
     var pageName = new URL(pageUrl).pathname.split("/").pop();
     var initializerName = PAGE_INITIALIZERS[pageName];
     var initializer = initializerName ? window[initializerName] : null;
-    if (typeof initializer !== "function") throw new Error("Page initializer was not found");
+    if (typeof initializer !== "function") throw new Error("Page unavailable");
 
     await initializer();
     await _waitForFirstLayout();

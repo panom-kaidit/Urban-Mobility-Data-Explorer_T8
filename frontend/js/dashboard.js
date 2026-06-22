@@ -44,13 +44,13 @@ async function loadDashboardData(filters) {
   if (zones && zones.zones && zones.zones.length > 0) {
     _renderTopZones(zones.zones);
   } else {
-    showChartError("zones-chart-container", "Could not load pickup zones. Is the backend running?");
+    showChartError("zones-chart-container", "Pickup zone data unavailable.");
   }
 
   if (fareDist && fareDist.distribution && fareDist.distribution.length > 0) {
     _renderFareDist(fareDist.distribution);
   } else {
-    showChartError("fare-chart-container", "Could not load fare data. Is the backend running?");
+    showChartError("fare-chart-container", "Fare data unavailable.");
   }
 
   _dashboardLoading = false;

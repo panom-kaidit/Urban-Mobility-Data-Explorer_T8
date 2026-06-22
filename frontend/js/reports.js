@@ -44,7 +44,7 @@ function _loadReportContext() {
     }
   }
 
-  // Summary renders as soon as it arrives — usually fast due to backend cache.
+  // Render the summary as soon as it arrives.
   fetchSummary().then(function(summary) {
     _reportContext.summary = summary;
     _renderSummaryTable(summary);
@@ -158,7 +158,6 @@ function _buildLiveSummaryRows(summary) {
     { metric: "Outliers Kept", value: formatNumber(summary.outlierCount), notes: "Rows flagged as outliers but retained for analysis." },
     { metric: "Taxi Zones", value: formatNumber(summary.locationCount), notes: "Location lookup records." },
     { metric: "Zone Boundaries", value: formatNumber(summary.zoneBoundaryCount), notes: "GeoJSON boundaries loaded for map rendering." },
-    { metric: "API Endpoints", value: "11+", notes: "Includes summary, pickup/dropoff zones, fare, revenue, trips, locations, and suspicious records." },
   ];
 }
 
@@ -192,7 +191,7 @@ function _getReports() {
       sections: [
         { heading: "Borough Revenue", body: topBoroughText },
         { heading: "Loaded Revenue Base", body: "All revenue calculations on this page come from the current SQLite database, so they will change after a full ETL reload." },
-        { heading: "Daily Trend", body: "The API currently returns " + formatNumber(_reportContext.revenueTrend.length) + " daily revenue points." },
+        { heading: "Daily Trend", body: formatNumber(_reportContext.revenueTrend.length) + " daily revenue points are available." },
       ],
     },
     zones: {
@@ -216,7 +215,7 @@ function _getReports() {
       sections: [
         { heading: "Pickup vs. Dropoff Demand", body: "Top pickup zones: " + topPickup + ". Top dropoff zones: " + topDropoff + "." },
         { heading: "Borough Flow", body: "The current data is strongly Manhattan-heavy, which may reflect the partial database load. Re-run the full ETL before treating borough share as final." },
-        { heading: "Implemented Analytics", body: "Top dropoff zones and average distance by hour are implemented in the backend and available through the shared API client." },
+        { heading: "Hourly Distance", body: "Average trip distance is available by pickup hour." },
       ],
     },
   };

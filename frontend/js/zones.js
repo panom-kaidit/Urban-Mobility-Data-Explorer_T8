@@ -17,7 +17,7 @@ async function loadZoneIntelligence() {
     var data  = await fetchTopPickupZones(15);
     var zones = data.zones || [];
     if (zones.length === 0) {
-      showChartError("zone-bar-container", "No zone data returned.");
+      showChartError("zone-bar-container", "No zone data available.");
       return;
     }
 
@@ -54,7 +54,7 @@ async function loadZoneIntelligence() {
     _initMap(mapZones, zoneDetails);
 
   } catch (err) {
-    showChartError("zone-bar-container", "Could not load zone data. Is the backend running?");
+    showChartError("zone-bar-container", "Zone data unavailable.");
     console.error("loadZoneIntelligence:", err);
   }
 }
@@ -87,7 +87,7 @@ function _renderRanking(zones) {
 function _initMap(zones, zoneDetails) {
   if (typeof L === "undefined") {
     var mapEl = document.getElementById("zone-map");
-    if (mapEl) mapEl.innerHTML = '<div class="coming-soon"><div class="coming-soon-icon">&#x1F5FA;</div><div>Leaflet failed to load.</div></div>';
+    if (mapEl) mapEl.innerHTML = '<div class="coming-soon"><div class="coming-soon-icon">&#x1F5FA;</div><div>Map unavailable.</div></div>';
     return;
   }
 

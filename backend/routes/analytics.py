@@ -102,8 +102,8 @@ def get_summary(
                 result["outlier_count"]         = int(result.get("outlier_count") or 0)
                 result["outside_january_count"] = int(result.get("outside_january_count") or 0)
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Summary query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Summary data unavailable")
 
     # Filtered requests require the source table because aggregates are unfiltered.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -145,8 +145,8 @@ def get_summary(
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Summary query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Summary data unavailable")
 
 
 @router.get("/top-pickup-zones")
@@ -166,10 +166,10 @@ def get_top_pickup_zones(
                 zones = find_top_pickup_zones_from_database(db, top_n)
                 result = {"algorithm": "merge_sort", "top_n": top_n, "zones": zones}
                 return result
-            except Exception as exc:
+            except Exception:
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Top pickup zones query failed: {exc}"
+                    detail="Pickup zone data unavailable"
                 )
 
     # Filtered path — run GROUP BY with filter conditions, then merge_sort.
@@ -191,8 +191,8 @@ def get_top_pickup_zones(
         return {"algorithm": "merge_sort", "top_n": top_n, "zones": sorted_zones[:top_n]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Top pickup zones query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Pickup zone data unavailable")
 
 
 @router.get("/top-dropoff-zones")
@@ -219,8 +219,8 @@ def get_top_dropoff_zones(
                 """, (top_n,)).fetchall()
                 result = {"top_n": top_n, "zones": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Top dropoff zones query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Dropoff zone data unavailable")
 
     # Filtered path — adds filter conditions to the WHERE clause.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -241,8 +241,8 @@ def get_top_dropoff_zones(
         return {"top_n": top_n, "zones": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Top dropoff zones query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Dropoff zone data unavailable")
 
 
 @router.get("/fare-distribution")
@@ -267,8 +267,8 @@ def get_fare_distribution(
                 """).fetchall()
                 result = {"distribution": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Fare distribution query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Fare data unavailable")
 
     # Filtered path — CASE WHEN avoids repeating params once per UNION ALL branch.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -295,8 +295,8 @@ def get_fare_distribution(
         return {"distribution": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Fare distribution query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Fare data unavailable")
 
 
 @router.get("/revenue-by-borough")
@@ -320,8 +320,8 @@ def get_revenue_by_borough(
                 """).fetchall()
                 result = {"boroughs": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Revenue by borough query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Borough revenue data unavailable")
 
     # Filtered path.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -341,8 +341,8 @@ def get_revenue_by_borough(
         return {"boroughs": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Revenue by borough query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Borough revenue data unavailable")
 
 
 @router.get("/revenue-trends")
@@ -366,8 +366,8 @@ def get_revenue_trends(
                 """).fetchall()
                 result = {"trend": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Revenue trends query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Revenue trend data unavailable")
 
     # Filtered path.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -387,8 +387,8 @@ def get_revenue_trends(
         return {"trend": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Revenue trends query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Revenue trend data unavailable")
 
 
 @router.get("/average-fare")
@@ -414,8 +414,8 @@ def get_average_fare(
                 """).fetchall()
                 result = {"fares": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Average fare query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Average fare data unavailable")
 
     # Filtered path.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -443,8 +443,8 @@ def get_average_fare(
         return {"fares": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Average fare query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Average fare data unavailable")
 
 
 @router.get("/average-distance")
@@ -469,8 +469,8 @@ def get_average_distance(
                 """).fetchall()
                 result = {"distances": [dict(r) for r in rows]}
                 return result
-            except Exception as exc:
-                raise HTTPException(status_code=500, detail=f"Average distance query failed: {exc}")
+            except Exception:
+                raise HTTPException(status_code=500, detail="Distance data unavailable")
 
     # Filtered path.
     conditions, params = _build_filters(borough, date, distance, fare)
@@ -490,5 +490,5 @@ def get_average_distance(
         return {"distances": [dict(r) for r in rows]}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Average distance query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Distance data unavailable")

@@ -25,7 +25,7 @@ function loadRevenueByBorough(data) {
   var wrap = document.getElementById("wrap-revenue-by-borough");
 
   try {
-    if (!data) throw new Error("Revenue by borough request failed");
+    if (!data) throw new Error("Borough revenue data unavailable");
     var boroughs = data.boroughs;
 
     var totalRevenue = boroughs.reduce(function(s, b) { return s + b.total_revenue; }, 0);
@@ -65,7 +65,7 @@ function loadRevenueTrend(data) {
   var wrap = document.getElementById("wrap-revenue-trend");
 
   try {
-    if (!data) throw new Error("Revenue trend request failed");
+    if (!data) throw new Error("Revenue trend data unavailable");
     var trend = data.trend;
 
     var peak = trend.reduce(function(max, d) {
@@ -99,7 +99,7 @@ function loadAverageFare(data) {
   var wrap = document.getElementById("wrap-average-fare");
 
   try {
-    if (!data) throw new Error("Average fare request failed");
+    if (!data) throw new Error("Average fare data unavailable");
     var rows = data.fares;
 
     var boroughList = [];
@@ -142,7 +142,7 @@ function loadFareDistribution(data) {
   var wrap = document.getElementById("wrap-fare-distribution");
 
   try {
-    if (!data) throw new Error("Fare distribution request failed");
+    if (!data) throw new Error("Fare distribution data unavailable");
     var rows = data.distribution;
 
     var busiest = rows.reduce(function(max, r) {
@@ -185,7 +185,7 @@ function _loadHtml() {
 function _errHtml(title) {
   return (
     '<div class="chart-placeholder">' +
-      '<span style="color:var(--accent-red)">&#x26A0;&#xFE0F; Could not load ' + title + '.</span>' +
+      '<span style="color:var(--accent-red)">' + title + ' unavailable.</span>' +
     '</div>'
   );
 }

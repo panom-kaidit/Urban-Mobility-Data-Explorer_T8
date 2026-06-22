@@ -21,11 +21,11 @@ async function initMobilityPage() {
 
 function loadTopPickupZones(data) {
   try {
-    if (!data) throw new Error("Top pickup zones request failed");
+    if (!data) throw new Error("Pickup zone data unavailable");
     var zones = data.zones || [];
 
     if (zones.length === 0) {
-      showChartError("mob-pickup-container", "No pickup zone data returned.");
+      showChartError("mob-pickup-container", "No pickup zone data available.");
       return;
     }
 
@@ -50,7 +50,7 @@ function loadTopPickupZones(data) {
     );
 
   } catch (err) {
-    showChartError("mob-pickup-container", "Could not load pickup zones.");
+    showChartError("mob-pickup-container", "Pickup zone data unavailable.");
     console.error("loadTopPickupZones:", err);
   }
 }
@@ -78,14 +78,14 @@ function loadTopDropoffZones(data) {
       zones.map(function(z) { return boroughColor(z.borough); })
     );
   } catch (err) {
-    showChartError("mob-dropoff-container", "Could not render Top Dropoff Zones.");
+    showChartError("mob-dropoff-container", "Dropoff zone data unavailable.");
     console.error("loadTopDropoffZones render:", err);
   }
 }
 
 function loadBoroughComparison(data) {
   try {
-    if (!data) throw new Error("Borough comparison request failed");
+    if (!data) throw new Error("Borough data unavailable");
     var boroughs = data.boroughs;
 
     var container = document.getElementById("mob-borough-container");
@@ -99,7 +99,7 @@ function loadBoroughComparison(data) {
     );
 
   } catch (err) {
-    showChartError("mob-borough-container", "Could not load borough data.");
+    showChartError("mob-borough-container", "Borough data unavailable.");
     console.error("loadBoroughComparison:", err);
   }
 }
@@ -128,7 +128,7 @@ function loadAverageDistance(data) {
       true
     );
   } catch (err) {
-    showChartError("mob-distance-container", "Could not render Average Distance chart.");
+    showChartError("mob-distance-container", "Distance data unavailable.");
     console.error("loadAverageDistance render:", err);
   }
 }

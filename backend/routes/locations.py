@@ -51,5 +51,5 @@ def get_zone(
         return dict(row)
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Zone lookup failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Zone data unavailable")

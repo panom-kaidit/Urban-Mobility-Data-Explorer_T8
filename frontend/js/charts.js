@@ -220,7 +220,7 @@ function showChartError(containerId, msg) {
   el.innerHTML = (
     '<div class="chart-placeholder">' +
       '<div class="chart-placeholder-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>' +
-      '<span style="color:var(--accent-red);max-width:260px;text-align:center;">' + (msg || "Could not load data.") + '</span>' +
+      '<span style="color:var(--accent-red);max-width:260px;text-align:center;">' + (msg || "Data unavailable.") + '</span>' +
     '</div>'
   );
 }
@@ -232,7 +232,7 @@ function showChartComingSoon(containerId, label) {
     '<div class="coming-soon">' +
       '<div class="coming-soon-icon"><i class="fa-solid fa-clock"></i></div>' +
       '<div class="section-title">' + (label || "Coming Soon") + '</div>' +
-      '<div class="coming-soon-label">Backend endpoint not yet implemented.</div>' +
+      '<div class="coming-soon-label">No data available.</div>' +
     '</div>'
   );
 }

@@ -74,5 +74,5 @@ def list_suspicious_records(
             "offset": offset,
             "count": total_count,
         }
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Suspicious records query failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Record data unavailable")
