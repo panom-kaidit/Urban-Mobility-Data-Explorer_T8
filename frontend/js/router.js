@@ -212,6 +212,12 @@ document.addEventListener("click", function(event) {
   if (!link || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
   event.preventDefault();
+  var sidebar = document.getElementById("sidebar");
+  var overlay = document.getElementById("sidebar-overlay");
+  var toggle = document.getElementById("sidebar-toggle");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("active");
+  if (toggle) toggle.setAttribute("aria-expanded", "false");
   if (link.classList.contains("active")) return;
   navigateToPage(link.href, true);
 });

@@ -31,7 +31,7 @@
 }
 
 /* Expand sidebar on hover (desktop only) */
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .sidebar:hover {
     width: var(--sidebar-width);
   }
@@ -47,7 +47,7 @@
   transition:  opacity 0.15s ease;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .sidebar:hover .sidebar-link-label,
   .sidebar:hover .sidebar-section-title,
   .sidebar:hover .sidebar-logo-text,
@@ -186,8 +186,7 @@
   transition:       left 0.3s ease;
 }
 
-.navbar-left  { display: flex; align-items: center; gap: 1rem; }
-.navbar-right { display: flex; align-items: center; gap: 1rem; }
+.navbar-left  { display: flex; align-items: center; gap: 1rem; min-width: 0; }
 
 .navbar-toggle {
   background:     none;
@@ -219,20 +218,6 @@
 .navbar-subtitle {
   font-size: 0.72rem;
   color:     var(--text-secondary);
-}
-
-.navbar-date {
-  font-size:   0.75rem;
-  color:       var(--text-secondary);
-  font-family: var(--font-mono);
-}
-
-.navbar-status {
-  display:     flex;
-  align-items: center;
-  gap:         0.45rem;
-  font-size:   0.75rem;
-  color:       var(--text-secondary);
 }
 
 /* MAIN CONTENT AREA */
@@ -336,6 +321,7 @@
   line-height: 1;
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 .stat-card-trend {
